@@ -1,21 +1,13 @@
-name: Release Please
+name: Release Please (disabled)
 
 on:
-  push:
-    branches: ["master"]
   workflow_dispatch:
 
-permissions:
-  contents: write
-  pull-requests: write
+permissions: {}
 
 jobs:
-  release-please:
+  disabled:
+    if: false
     runs-on: ubuntu-latest
     steps:
-      - name: Release Please
-        uses: googleapis/release-please-action@v4
-        with:
-          config-file: release-please-config.json
-          manifest-file: .release-please-manifest.json
-          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+      - run: echo "disabled"

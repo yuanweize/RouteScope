@@ -1,14 +1,3 @@
 {
-  "bootstrap-sha": "",
-  "release-type": "simple",
-  "packages": {
-    ".": {
-      "release-type": "simple",
-      "changelog-path": "CHANGELOG.md",
-      "extra-files": [
-        "README.md",
-        "README_CN.md"
-      ]
-    }
-  }
+  "deprecated": true
 }

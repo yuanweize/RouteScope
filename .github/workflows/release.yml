@@ -1,100 +1,13 @@
-name: Build and Release
+name: Build and Release (disabled)
 
 on:
-  push:
-    tags:
-      - 'v*'
+  workflow_dispatch:
 
-permissions:
-  contents: write
+permissions: {}
 
 jobs:
-  release:
-    name: Build for ${{ matrix.os }}/${{ matrix.arch }}
-    runs-on: ${{ (matrix.os == 'darwin') && 'macos-latest' || 'ubuntu-latest' }}
-    strategy:
-      matrix:
-        include:
-          - os: linux
-            arch: amd64
-            GOOS: linux
-            GOARCH: amd64
-          - os: linux
-            arch: arm64
-            GOOS: linux
-            GOARCH: arm64
-          - os: darwin
-            arch: amd64
-            GOOS: darwin
-            GOARCH: amd64
-          - os: darwin
-            arch: arm64
-            GOOS: darwin
-            GOARCH: arm64
-          - os: windows
-            arch: amd64
-            GOOS: windows
-            GOARCH: amd64
-
+  disabled:
+    if: false
+    runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-
-    # Frontend Build
-    - name: Set up Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: 18
-
-    - name: Build Frontend
-      run: |
-        cd web
-        npm install
-        npm run build
-
-    # Go Build
-    - name: Set up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: '1.24'
-        check-latest: true
-
-    - name: Install Cross-Compilers (Linux Only)
-      if: runner.os == 'Linux'
-      run: |
-        if [ "${{ matrix.os }}" = "linux" ] && [ "${{ matrix.arch }}" = "arm64" ]; then
-          sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu
-        fi
-        if [ "${{ matrix.os }}" = "windows" ]; then
-          sudo apt-get update && sudo apt-get install -y gcc-mingw-w64
-        fi
-
-    - name: Build Binary
-      shell: bash
-      run: |
-        # Set CC based on target
-        export CC=gcc
-        if [ "${{ runner.os }}" = "Linux" ]; then
-          if [ "${{ matrix.os }}" = "linux" ] && [ "${{ matrix.arch }}" = "arm64" ]; then
-            export CC=aarch64-linux-gnu-gcc
-          fi
-          if [ "${{ matrix.os }}" = "windows" ]; then
-            export CC=x86_64-w64-mingw32-gcc
-          fi
-        fi
-        
-        # Build logic
-        BINARY_NAME=routelens-${{ matrix.os }}-${{ matrix.arch }}
-        [ "${{ matrix.os }}" = "windows" ] && BINARY_NAME="${BINARY_NAME}.exe"
-        
-        echo "Using CC: $CC"
-        CGO_ENABLED=1 GOOS=${{ matrix.GOOS }} GOARCH=${{ matrix.GOARCH }} CC=$CC \
-          go build -v -o build/$BINARY_NAME ./cmd/server
-
-    - name: Upload Release Asset
-      uses: softprops/action-gh-release@v1
-      with:
-        files: build/*
-        generate_release_notes: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: echo "disabled"
