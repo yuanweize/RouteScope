@@ -94,7 +94,8 @@
     "refresh": "Refresh",
     "clear": "Clear",
     "noLogs": "No logs available",
-    "lines": "Lines"
+    "lines": "Lines",
+    "autoRefresh": "Auto"
   },
   "login": {
     "title": "Login",

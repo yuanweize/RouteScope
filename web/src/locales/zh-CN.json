@@ -94,7 +94,8 @@
     "refresh": "刷新",
     "clear": "清空",
     "noLogs": "暂无日志",
-    "lines": "行数"
+    "lines": "行数",
+    "autoRefresh": "自动"
   },
   "login": {
     "title": "登录",

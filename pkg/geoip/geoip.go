@@ -15,9 +15,9 @@ const (
 
 type Location struct {
 	City      string  `json:"city"`
-	CityEN    string  `json:"city_en"`    // English name for localization
-	Subdiv    string  `json:"subdiv"`     // Province/State
-	SubdivEN  string  `json:"subdiv_en"`  // English subdivision
+	CityEN    string  `json:"city_en"`   // English name for localization
+	Subdiv    string  `json:"subdiv"`    // Province/State
+	SubdivEN  string  `json:"subdiv_en"` // English subdivision
 	Country   string  `json:"country"`
 	CountryEN string  `json:"country_en"` // English country
 	ISOCode   string  `json:"iso_code"`

@@ -53,11 +53,15 @@ const Dashboard: React.FC = () => {
     ready: !!selectedTarget,
   });
 
-  useRequest(() => getLatestTrace(selectedTarget), {
-    refreshDeps: [selectedTarget],
-    ready: !!selectedTarget,
-    onSuccess: (data) => setTrace(data),
-  });
+  // Re-fetch trace when language changes for localized location names
+  useRequest(
+    () => getLatestTrace(selectedTarget, i18n.language),
+    {
+      refreshDeps: [selectedTarget, i18n.language],
+      ready: !!selectedTarget,
+      onSuccess: (data) => setTrace(data),
+    }
+  );
 
   const avgLatency = history.length
     ? history.reduce((sum: number, h: any) => sum + (h.latency_ms || h.LatencyMs || 0), 0) / history.length

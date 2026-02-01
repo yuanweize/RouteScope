@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { Card, Select, Button, Space, Tag, Typography, Empty } from 'antd';
-import { ReloadOutlined } from '@ant-design/icons';
+import React, { useState, useEffect, useRef } from 'react';
+import { Card, Select, Button, Space, Tag, Typography, Empty, Switch, Progress } from 'antd';
+import { ReloadOutlined, SyncOutlined } from '@ant-design/icons';
 import { useRequest } from 'ahooks';
 import { useTranslation } from 'react-i18next';
 import { getLogs } from '../api';
@@ -14,16 +14,50 @@ const levelColors: Record<string, string> = {
   ERROR: 'red',
 };
 
+const AUTO_REFRESH_INTERVAL = 3000; // 3 seconds
+
 const Logs: React.FC = () => {
   const { t } = useTranslation();
   const { isDark } = useTheme();
   const [levelFilter, setLevelFilter] = useState<string>('');
   const [lines, setLines] = useState<number>(100);
+  const [autoRefresh, setAutoRefresh] = useState<boolean>(true);
+  const [countdown, setCountdown] = useState<number>(100);
+  const terminalRef = useRef<HTMLDivElement>(null);
 
   const { data, loading, refresh } = useRequest(
     () => getLogs({ lines, level: levelFilter || undefined }),
     { refreshDeps: [lines, levelFilter] }
   );
+
+  // Auto-refresh logic with countdown
+  useEffect(() => {
+    if (!autoRefresh) {
+      setCountdown(100);
+      return;
+    }
+
+    const intervalId = setInterval(() => {
+      refresh();
+      setCountdown(100);
+    }, AUTO_REFRESH_INTERVAL);
+
+    const countdownId = setInterval(() => {
+      setCountdown((prev) => Math.max(0, prev - (100 / (AUTO_REFRESH_INTERVAL / 100))));
+    }, 100);
+
+    return () => {
+      clearInterval(intervalId);
+      clearInterval(countdownId);
+    };
+  }, [autoRefresh, refresh]);
+
+  // Auto-scroll to bottom when new logs arrive
+  useEffect(() => {
+    if (terminalRef.current && autoRefresh) {
+      terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
+    }
+  }, [data, autoRefresh]);
 
   const logs = data?.logs || [];
 
@@ -32,12 +66,40 @@ const Logs: React.FC = () => {
     return date.toLocaleString();
   };
 
+  const handleManualRefresh = () => {
+    refresh();
+    setCountdown(100);
+  };
+
   return (
     <Card
       className="page-card"
-      title={t('logs.title')}
+      title={
+        <Space>
+          {t('logs.title')}
+          {autoRefresh && <SyncOutlined spin style={{ color: '#1677ff', marginLeft: 8 }} />}
+        </Space>
+      }
       extra={
         <Space>
+          <Space size="small">
+            <Typography.Text style={{ fontSize: 12 }}>{t('logs.autoRefresh')}</Typography.Text>
+            <Switch
+              size="small"
+              checked={autoRefresh}
+              onChange={setAutoRefresh}
+            />
+          </Space>
+          {autoRefresh && (
+            <Progress
+              type="line"
+              percent={countdown}
+              showInfo={false}
+              size="small"
+              style={{ width: 60, marginLeft: 8 }}
+              strokeColor="#1677ff"
+            />
+          )}
           <Select
             style={{ width: 120 }}
             value={levelFilter}
@@ -61,13 +123,14 @@ const Logs: React.FC = () => {
               { label: '500', value: 500 },
             ]}
           />
-          <Button icon={<ReloadOutlined />} onClick={refresh} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={handleManualRefresh} loading={loading}>
             {t('logs.refresh')}
           </Button>
         </Space>
       }
     >
       <div
+        ref={terminalRef}
         className="log-terminal"
         style={{
           background: isDark ? '#1a1a1a' : '#0d1117',

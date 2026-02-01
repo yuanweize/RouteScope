@@ -37,7 +37,8 @@ export const deleteTarget = (id: number) => request.delete(`/api/v1/targets/${id
 
 export const getHistory = (params: { target: string; start?: string; end?: string }) => request.get('/api/v1/history', { params });
 
-export const getLatestTrace = (target: string) => request.get('/api/v1/trace', { params: { target } });
+export const getLatestTrace = (target: string, lang?: string) =>
+  request.get('/api/v1/trace', { params: { target, lang } });
 
 export const triggerProbe = (payload?: { target?: string }) => request.post('/api/v1/probe', payload || {});
 

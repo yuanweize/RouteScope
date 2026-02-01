@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"io/fs"
 	"net/http"
 	"regexp"
@@ -320,7 +321,44 @@ func (s *Server) handleTrace(c *gin.Context) {
 		return
 	}
 
-	c.Data(http.StatusOK, "application/json", rec.TraceJson)
+	// Check if language localization is needed
+	lang := c.Query("lang")
+	if lang == "" || strings.HasPrefix(lang, "zh") {
+		// Default: return raw JSON (Chinese)
+		c.Data(http.StatusOK, "application/json", rec.TraceJson)
+		return
+	}
+
+	// For English, swap city/subdiv/country with their _en versions
+	var payload map[string]interface{}
+	if err := json.Unmarshal(rec.TraceJson, &payload); err != nil {
+		c.Data(http.StatusOK, "application/json", rec.TraceJson)
+		return
+	}
+
+	if hops, ok := payload["hops"].([]interface{}); ok {
+		for _, hopRaw := range hops {
+			if hop, ok := hopRaw.(map[string]interface{}); ok {
+				// Use English fields if available
+				if cityEN, ok := hop["city_en"].(string); ok && cityEN != "" {
+					hop["city"] = cityEN
+				}
+				if subdivEN, ok := hop["subdiv_en"].(string); ok && subdivEN != "" {
+					hop["subdiv"] = subdivEN
+				}
+				if countryEN, ok := hop["country_en"].(string); ok && countryEN != "" {
+					hop["country"] = countryEN
+				}
+			}
+		}
+	}
+
+	localizedJson, err := json.Marshal(payload)
+	if err != nil {
+		c.Data(http.StatusOK, "application/json", rec.TraceJson)
+		return
+	}
+	c.Data(http.StatusOK, "application/json", localizedJson)
 }
 
 func (s *Server) handleGetTargets(c *gin.Context) {

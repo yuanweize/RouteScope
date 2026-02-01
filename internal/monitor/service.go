@@ -19,13 +19,14 @@ import (
 )
 
 type Service struct {
-	db            *storage.DB
-	targets       []storage.Target
-	pingTicker    *time.Ticker
-	speedTicker   *time.Ticker
-	refreshTicker *time.Ticker
-	stopChan      chan struct{}
-	geoProvider   *geoip.Provider
+	db              *storage.DB
+	targets         []storage.Target
+	pingTicker      *time.Ticker
+	speedTicker     *time.Ticker
+	refreshTicker   *time.Ticker
+	heartbeatTicker *time.Ticker
+	stopChan        chan struct{}
+	geoProvider     *geoip.Provider
 }
 
 func NewService(db *storage.DB) *Service {
@@ -52,6 +53,7 @@ func (s *Service) Start() {
 	s.pingTicker = time.NewTicker(30 * time.Second)
 	s.speedTicker = time.NewTicker(30 * time.Minute) // More frequent speed tests
 	s.refreshTicker = time.NewTicker(1 * time.Minute)
+	s.heartbeatTicker = time.NewTicker(60 * time.Second) // Heartbeat every 60s
 
 	go s.runLoop()
 }
@@ -74,6 +76,8 @@ func (s *Service) runLoop() {
 			s.runSpeedCycle()
 		case <-s.refreshTicker.C:
 			s.refreshTargets()
+		case <-s.heartbeatTicker.C:
+			logging.Info("monitor", "Heartbeat: System healthy, monitoring %d targets", len(s.targets))
 		case <-s.stopChan:
 			log.Println("Monitor Service Stopped")
 			logging.Info("monitor", "Monitor Service Stopped")
