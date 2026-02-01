@@ -113,16 +113,34 @@
   },
   "about": {
     "title": "About",
+    "slogan": "A modern, agentless network observability platform for real-time route monitoring and visualization.",
     "description": "RouteLens is a self-hosted network route monitoring and visualization tool.",
-    "features": "Features",
+    "techStack": "Tech Stack",
+    "resources": "Resources",
+    "repository": "GitHub Repository",
+    "reportIssue": "Report Issue",
+    "documentation": "Documentation",
+    "quickGuide": "Quick Start Guide",
+    "guide": {
+      "dashboard": "Dashboard",
+      "dashboardDesc": "View real-time network topology, latency metrics, and packet loss on an interactive world map.",
+      "targets": "Targets",
+      "targetsDesc": "Add servers or IP addresses to monitor. Configure probe types: ICMP, SSH, HTTP, or iPerf3.",
+      "logs": "System Logs",
+      "logsDesc": "Check system status and debug issues with the built-in log viewer."
+    },
+    "features": "Key Features",
     "featureList": [
       "Real-time traceroute with MTR integration",
       "Geographic IP visualization on world map",
       "Multi-protocol speed testing (SSH/HTTP/iPerf)",
-      "Historical metrics and trend analysis"
+      "Historical metrics and trend analysis",
+      "Dark mode and multi-language support",
+      "Self-hosted, no external dependencies"
     ],
-    "github": "GitHub Repository",
-    "license": "MIT License"
+    "license": "MIT License",
+    "madeWith": "Made with",
+    "byAuthor": "by yuanweize"
   },
   "errors": {
     "networkError": "Network error, please try again",

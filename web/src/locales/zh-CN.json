@@ -113,16 +113,34 @@
   },
   "about": {
     "title": "关于",
+    "slogan": "现代化、无代理的网络可观测性平台，实时监控网络路由与可视化。",
     "description": "RouteLens 是一款自托管的网络路由监控与可视化工具。",
-    "features": "功能特性",
+    "techStack": "技术栈",
+    "resources": "资源链接",
+    "repository": "GitHub 仓库",
+    "reportIssue": "提交 Issue",
+    "documentation": "查看文档",
+    "quickGuide": "快速入门指南",
+    "guide": {
+      "dashboard": "仪表盘",
+      "dashboardDesc": "在交互式世界地图上查看实时网络拓扑、延迟指标和丢包率。",
+      "targets": "监控目标",
+      "targetsDesc": "添加要监控的服务器或 IP 地址。配置探测类型：ICMP、SSH、HTTP 或 iPerf3。",
+      "logs": "系统日志",
+      "logsDesc": "使用内置日志查看器检查系统状态和排查问题。"
+    },
+    "features": "核心功能",
     "featureList": [
       "基于 MTR 的实时路由追踪",
       "世界地图上的 GeoIP 可视化",
       "多协议带宽测试 (SSH/HTTP/iPerf)",
-      "历史数据与趋势分析"
+      "历史数据与趋势分析",
+      "深色模式与多语言支持",
+      "自托管部署，无外部依赖"
     ],
-    "github": "GitHub 仓库",
-    "license": "MIT 开源协议"
+    "license": "MIT 开源协议",
+    "madeWith": "用",
+    "byAuthor": "制作 by yuanweize"
   },
   "errors": {
     "networkError": "网络错误，请重试",
