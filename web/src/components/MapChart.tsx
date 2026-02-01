@@ -32,13 +32,40 @@ const MapChart: React.FC<MapChartProps> = ({ trace, isDark }) => {
     return trace;
   }, [trace]);
 
-  const points = (traceData?.hops || [])
-    .filter((h: any) => Number.isFinite(h.lon) && Number.isFinite(h.lat) && (h.lon !== 0 || h.lat !== 0))
-    .map((h: any) => ({
-      name: h.host || h.ip,
-      value: [h.lon, h.lat],
-      latency: h.latency_last_ms || h.latency_avg_ms || h.latency_ms || 0,
-    }));
+  // High-Precision Mode: Filter out low-precision nodes (country-level only)
+  // Only include nodes with city or subdivision precision for accurate map lines
+  const highPrecisionPoints = useMemo(() => {
+    const hops = traceData?.hops || [];
+    return hops
+      .filter((h: any) => {
+        if (!Number.isFinite(h.lon) || !Number.isFinite(h.lat)) return false;
+        if (h.lon === 0 && h.lat === 0) return false;
+        const precision = h.geo_precision || '';
+        if (precision === 'country' || precision === 'none') return false;
+        if (!precision && !h.city && !h.subdiv) return false;
+        return true;
+      })
+      .map((h: any) => ({
+        name: h.city || h.subdiv || h.host || h.ip,
+        value: [h.lon, h.lat],
+        latency: h.latency_last_ms || h.latency_avg_ms || h.latency_ms || 0,
+        hop: h.hop,
+      }));
+  }, [traceData]);
+
+  // All points for scatter display (including low-precision)
+  const allPoints = useMemo(() => {
+    const hops = traceData?.hops || [];
+    return hops
+      .filter((h: any) => Number.isFinite(h.lon) && Number.isFinite(h.lat) && (h.lon !== 0 || h.lat !== 0))
+      .map((h: any) => ({
+        name: h.city || h.subdiv || h.host || h.ip,
+        value: [h.lon, h.lat],
+        latency: h.latency_last_ms || h.latency_avg_ms || h.latency_ms || 0,
+        hop: h.hop,
+        precision: h.geo_precision || (h.city ? 'city' : h.subdiv ? 'subdivision' : 'country'),
+      }));
+  }, [traceData]);
 
   const colorForLatency = (latency: number) => {
     if (latency > 200) return '#ff4d4f';
@@ -46,15 +73,20 @@ const MapChart: React.FC<MapChartProps> = ({ trace, isDark }) => {
     return '#52c41a';
   };
 
-  const segments = [] as any[];
-  for (let i = 0; i < points.length - 1; i += 1) {
-    const next = points[i + 1];
-    segments.push({
-      name: traceData?.target || 'trace',
-      coords: [points[i].value, next.value],
-      lineStyle: { color: colorForLatency(next.latency) },
-    });
-  }
+  // Build line segments using HIGH PRECISION points only
+  const segments = useMemo(() => {
+    const segs: any[] = [];
+    for (let i = 0; i < highPrecisionPoints.length - 1; i += 1) {
+      const curr = highPrecisionPoints[i];
+      const next = highPrecisionPoints[i + 1];
+      segs.push({
+        name: traceData?.target || 'trace',
+        coords: [curr.value, next.value],
+        lineStyle: { color: colorForLatency(next.latency) },
+      });
+    }
+    return segs;
+  }, [highPrecisionPoints, traceData]);
 
   const option = {
     backgroundColor: 'transparent',
@@ -63,7 +95,9 @@ const MapChart: React.FC<MapChartProps> = ({ trace, isDark }) => {
       formatter: (params: any) => {
         if (params.seriesType === 'effectScatter') {
           const latency = params.data?.latency ?? 0;
-          return `Node: ${params.name}<br/>Latency: ${latency.toFixed(1)}ms`;
+          const precision = params.data?.precision || '';
+          const precisionLabel = precision === 'city' ? '🎯 City' : precision === 'subdivision' ? '📍 Province' : '🌐 Country';
+          return `<b>${params.name}</b><br/>Hop: ${params.data?.hop || '-'}<br/>Latency: ${latency.toFixed(1)}ms<br/>Precision: ${precisionLabel}`;
         }
         return params.name;
       },
@@ -85,17 +119,8 @@ const MapChart: React.FC<MapChartProps> = ({ trace, isDark }) => {
         coordinateSystem: 'geo',
         polyline: true,
         zlevel: 1,
-        effect: {
-          show: true,
-          period: 4,
-          trailLength: 0.7,
-          color: '#fff',
-          symbolSize: 3,
-        },
-        lineStyle: {
-          width: 0,
-          curveness: 0.2,
-        },
+        effect: { show: true, period: 4, trailLength: 0.7, color: '#fff', symbolSize: 3 },
+        lineStyle: { width: 0, curveness: 0.2 },
         data: segments,
       },
       {
@@ -105,11 +130,7 @@ const MapChart: React.FC<MapChartProps> = ({ trace, isDark }) => {
         zlevel: 2,
         symbol: ['none', 'arrow'],
         symbolSize: 10,
-        lineStyle: {
-          width: 2,
-          opacity: 0.7,
-          curveness: 0.2,
-        },
+        lineStyle: { width: 2, opacity: 0.7, curveness: 0.2 },
         data: segments,
       },
       {
@@ -117,10 +138,14 @@ const MapChart: React.FC<MapChartProps> = ({ trace, isDark }) => {
         coordinateSystem: 'geo',
         zlevel: 3,
         rippleEffect: { brushType: 'stroke' },
-        label: { show: true, position: 'right', formatter: '{b}' },
-        symbolSize: 10,
-        itemStyle: { color: '#1677ff' },
-        data: points,
+        label: {
+          show: true,
+          position: 'right',
+          formatter: (params: any) => (params.data?.precision === 'country' ? '' : params.name),
+        },
+        symbolSize: (_val: any, params: any) => (params.data?.precision === 'country' ? 6 : 10),
+        itemStyle: { color: (params: any) => (params.data?.precision === 'country' ? '#666' : '#1677ff') },
+        data: allPoints,
       },
     ],
   };

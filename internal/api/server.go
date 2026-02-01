@@ -3,6 +3,7 @@ package api
 import (
 	"io/fs"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -11,6 +12,12 @@ import (
 	"github.com/yuanweize/RouteLens/internal/auth"
 	"github.com/yuanweize/RouteLens/internal/monitor"
 	"github.com/yuanweize/RouteLens/pkg/storage"
+)
+
+// Input validation patterns (Security: prevent command injection)
+var (
+	// Valid: IPv4, IPv6, domain names (RFC 1123)
+	targetPattern = regexp.MustCompile(`^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z]{2,}$|^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$|^[a-fA-F0-9:]+$`)
 )
 
 type Server struct {
@@ -37,12 +44,18 @@ func (s *Server) Run(addr string) error {
 }
 
 func (s *Server) setupRoutes() {
-	// CORS (Dev mode mostly, but kept for safety if run separately)
+	// CORS (Strict: same-origin only, unless explicitly configured)
 	s.router.Use(func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		origin := c.Request.Header.Get("Origin")
+		// Allow same-origin and localhost for dev
+		if origin == "" || strings.HasPrefix(origin, "http://localhost") || strings.HasPrefix(origin, "http://127.0.0.1") {
+			c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+		}
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
+		c.Writer.Header().Set("X-Content-Type-Options", "nosniff")
+		c.Writer.Header().Set("X-Frame-Options", "DENY")
 
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(204)
@@ -321,6 +334,22 @@ func (s *Server) handleSaveTarget(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	// Security: Validate target address to prevent command injection
+	if t.Address == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "address is required"})
+		return
+	}
+	if !targetPattern.MatchString(t.Address) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid address format: only domain names and IP addresses allowed"})
+		return
+	}
+	// Block shell metacharacters as extra safety
+	if strings.ContainsAny(t.Address, ";|&$`\"'<>(){}[]") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "address contains invalid characters"})
+		return
+	}
+
 	if t.ProbeType == "" {
 		t.ProbeType = storage.ProbeModeICMP
 	}

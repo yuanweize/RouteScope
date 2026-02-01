@@ -1,10 +1,29 @@
 import React, { useEffect, useState } from 'react';
 import { Card, Col, Row, Statistic, Select, Typography, Collapse, Table, Tag, Space } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 import { useRequest } from 'ahooks';
 import { getHistory, getLatestTrace, getTargets } from '../api';
 import MapChart from '../components/MapChart';
 import MetricsChart from '../components/MetricsChart';
 import { useTheme } from '../context/ThemeContext';
+
+interface HopRow {
+  key: number;
+  hop: number;
+  host: string;
+  ip: string;
+  location: string;
+  subdiv: string;
+  isp: string;
+  loss: number;
+  last: number;
+  avg: number;
+  best: number;
+  worst: number;
+  asn: string;
+  isTimeout: boolean;
+  geoPrecision: string;
+}
 
 const Dashboard: React.FC = () => {
   const { isDark } = useTheme();
@@ -54,36 +73,94 @@ const Dashboard: React.FC = () => {
 
   const renderLatencyTag = (value: any, color?: string) => {
     if (typeof value === 'number' && value > 0) {
-      return <Tag color={color}>{`${value}ms`}</Tag>;
+      return <Tag color={color}>{`${value.toFixed(1)}ms`}</Tag>;
     }
-    return (
-      <Tag>
-        <Typography.Text type="secondary">N/A</Typography.Text>
-      </Tag>
-    );
+    return <Typography.Text type="secondary" style={{ fontSize: 12 }}>N/A</Typography.Text>;
   };
 
   const renderLoss = (value: any) => {
     if (typeof value === 'number') {
-      return value;
+      const color = value > 50 ? '#ff4d4f' : value > 10 ? '#faad14' : undefined;
+      return <span style={{ color }}>{value.toFixed(1)}%</span>;
     }
     return <Typography.Text type="secondary">N/A</Typography.Text>;
   };
 
-  const hopRows = (traceData?.hops || []).map((hop: any) => ({
-    key: hop.hop,
-    hop: hop.hop,
-    host: hop.host || hop.ip,
-    ip: hop.ip,
-    location: [hop.city, hop.country].filter(Boolean).join(', '),
-    isp: hop.isp,
-    loss: hop.loss,
-    last: hop.latency_last_ms,
-    avg: hop.latency_avg_ms,
-    best: hop.latency_best_ms,
-    worst: hop.latency_worst_ms,
-    asn: hop.asn,
-  }));
+  const hopRows: HopRow[] = (traceData?.hops || []).map((hop: any) => {
+    const isTimeout = hop.loss === 100 || hop.ip === '*' || hop.host === '???';
+    return {
+      key: hop.hop,
+      hop: hop.hop,
+      host: hop.host || hop.ip,
+      ip: hop.ip,
+      location: [hop.city, hop.subdiv, hop.country].filter(Boolean).join(', '),
+      subdiv: hop.subdiv || '',
+      isp: hop.isp,
+      loss: hop.loss,
+      last: hop.latency_last_ms,
+      avg: hop.latency_avg_ms,
+      best: hop.latency_best_ms,
+      worst: hop.latency_worst_ms,
+      asn: hop.asn,
+      isTimeout,
+      geoPrecision: hop.geo_precision || '',
+    };
+  });
+
+  const hopColumns: ColumnsType<HopRow> = [
+    { title: '#', dataIndex: 'hop', width: 50, align: 'center' },
+    {
+      title: 'IP / Host',
+      dataIndex: 'host',
+      width: 200,
+      ellipsis: true,
+      render: (val: string, row: HopRow) => (
+        <Typography.Text copyable={{ text: row.ip }} style={{ opacity: row.isTimeout ? 0.4 : 1 }}>
+          {val || '???'}
+        </Typography.Text>
+      ),
+    },
+    {
+      title: 'Location',
+      width: 220,
+      render: (_: any, row: HopRow) => (
+        <div style={{ opacity: row.isTimeout ? 0.4 : 1 }}>
+          <div>{row.location || '-'}</div>
+          {row.isp && <Typography.Text type="secondary" style={{ fontSize: 11 }}>{row.isp}</Typography.Text>}
+          {row.geoPrecision === 'country' && <Tag color="orange" style={{ marginLeft: 4, fontSize: 10 }}>Country Only</Tag>}
+        </div>
+      ),
+    },
+    {
+      title: 'Loss',
+      dataIndex: 'loss',
+      width: 80,
+      align: 'right',
+      render: (val: number, row: HopRow) => (
+        <span style={{ opacity: row.isTimeout ? 0.4 : 1 }}>{renderLoss(val)}</span>
+      ),
+    },
+    {
+      title: 'Latency',
+      width: 280,
+      render: (_: any, row: HopRow) => (
+        <Space style={{ opacity: row.isTimeout ? 0.4 : 1 }}>
+          {renderLatencyTag(row.last, 'green')}
+          {renderLatencyTag(row.avg, 'blue')}
+          {renderLatencyTag(row.best)}
+          {renderLatencyTag(row.worst)}
+        </Space>
+      ),
+    },
+    {
+      title: 'ASN',
+      dataIndex: 'asn',
+      width: 100,
+      render: (val: string, row: HopRow) => (
+        <Typography.Text type="secondary" style={{ opacity: row.isTimeout ? 0.4 : 1 }}>{val || '-'}</Typography.Text>
+      ),
+    },
+  ];
 
   return (
     <div>
@@ -143,34 +220,10 @@ const Dashboard: React.FC = () => {
                     <Table
                       size="small"
                       dataSource={hopRows}
-                      defaultExpandAllRows
                       pagination={false}
-                      columns={[
-                        { title: 'Hop #', dataIndex: 'hop', width: 70 },
-                        { title: 'IP/Host', dataIndex: 'host' },
-                        {
-                          title: 'Location (GeoIP)',
-                          render: (_, row: any) => (
-                            <div>
-                              <div>{row.location || '-'}</div>
-                              <Typography.Text type="secondary">{row.isp || ''}</Typography.Text>
-                            </div>
-                          ),
-                        },
-                        { title: 'Loss %', dataIndex: 'loss', render: (val: number) => renderLoss(val) },
-                        {
-                          title: 'Latency (Last/Avg/Best/Worst)',
-                          render: (_, row: any) => (
-                            <Space>
-                              {renderLatencyTag(row.last, 'green')}
-                              {renderLatencyTag(row.avg, 'blue')}
-                              {renderLatencyTag(row.best)}
-                              {renderLatencyTag(row.worst)}
-                            </Space>
-                          ),
-                        },
-                        { title: 'ASN', dataIndex: 'asn', width: 120 },
-                      ]}
+                      columns={hopColumns}
+                      rowClassName={(row: HopRow) => (row.isTimeout ? 'hop-timeout-row' : '')}
+                      scroll={{ x: 900 }}
                     />
                   ),
                 },

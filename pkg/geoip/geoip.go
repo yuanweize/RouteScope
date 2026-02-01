@@ -8,12 +8,14 @@ import (
 )
 
 type Location struct {
-	City      string
-	Country   string
-	ISOCode   string
-	ISP       string
-	Latitude  float64
-	Longitude float64
+	City       string
+	Subdiv     string // Province/State
+	Country    string
+	ISOCode    string
+	ISP        string
+	Latitude   float64
+	Longitude  float64
+	Precision  string // "city", "subdivision", "country", "none"
 }
 
 type Provider struct {
@@ -55,10 +57,20 @@ func (p *Provider) Lookup(ipStr string) (*Location, error) {
 	if p.cityDB != nil {
 		record, err := p.cityDB.City(ip)
 		if err == nil {
+			// Try City first (highest precision)
 			loc.City = record.City.Names["zh-CN"]
 			if loc.City == "" {
 				loc.City = record.City.Names["en"]
 			}
+
+			// Try Subdivision (Province/State) as fallback
+			if len(record.Subdivisions) > 0 {
+				loc.Subdiv = record.Subdivisions[0].Names["zh-CN"]
+				if loc.Subdiv == "" {
+					loc.Subdiv = record.Subdivisions[0].Names["en"]
+				}
+			}
+
 			loc.Country = record.Country.Names["zh-CN"]
 			if loc.Country == "" {
 				loc.Country = record.Country.Names["en"]
@@ -66,6 +78,17 @@ func (p *Provider) Lookup(ipStr string) (*Location, error) {
 			loc.ISOCode = record.Country.IsoCode
 			loc.Latitude = record.Location.Latitude
 			loc.Longitude = record.Location.Longitude
+
+			// Determine precision level
+			if loc.City != "" {
+				loc.Precision = "city"
+			} else if loc.Subdiv != "" {
+				loc.Precision = "subdivision"
+			} else if loc.Country != "" {
+				loc.Precision = "country"
+			} else {
+				loc.Precision = "none"
+			}
 		}
 	}
 

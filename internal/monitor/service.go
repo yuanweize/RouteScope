@@ -295,10 +295,12 @@ type traceHop struct {
 	Loss           float64 `json:"loss"`
 	ASN            string  `json:"asn,omitempty"`
 	City           string  `json:"city,omitempty"`
+	Subdiv         string  `json:"subdiv,omitempty"`
 	Country        string  `json:"country,omitempty"`
 	ISP            string  `json:"isp,omitempty"`
 	Latitude       float64 `json:"lat,omitempty"`
 	Longitude      float64 `json:"lon,omitempty"`
+	GeoPrecision   string  `json:"geo_precision,omitempty"`
 }
 
 type tracePayload struct {
@@ -372,10 +374,12 @@ func (s *Service) enrichHopGeo(th *traceHop) {
 	}
 	if loc, err := s.geoProvider.Lookup(th.IP); err == nil {
 		th.City = loc.City
+		th.Subdiv = loc.Subdiv
 		th.Country = loc.Country
 		th.ISP = loc.ISP
 		th.Latitude = loc.Latitude
 		th.Longitude = loc.Longitude
+		th.GeoPrecision = loc.Precision
 	}
 }
 
