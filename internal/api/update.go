@@ -1,10 +1,12 @@
 package api
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/blang/semver"
@@ -62,32 +64,74 @@ func (s *Server) handleSystemInfo(c *gin.Context) {
 func (s *Server) handleCheckUpdate(c *gin.Context) {
 	logging.Info("update", "Checking for updates, current version: %s", Version)
 
-	// Create updater with filter for correct binary
-	updater, err := selfupdate.NewUpdater(selfupdate.Config{
-		Filters: []string{
-			fmt.Sprintf("routelens_.*_%s_%s", runtime.GOOS, runtime.GOARCH),
-		},
-	})
-	if err != nil {
-		logging.Error("update", "Failed to create updater: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to initialize updater"})
-		return
-	}
-
-	// Check for latest release
-	latest, found, err := updater.DetectLatest(githubSlug)
-	if err != nil {
-		logging.Error("update", "Failed to check for updates: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to check for updates: %v", err)})
-		return
-	}
-
 	response := UpdateCheckResponse{
 		CurrentVersion: Version,
 		HasUpdate:      false,
 	}
 
-	if found && latest != nil {
+	// Create updater with filter for correct binary
+	updater, err := selfupdate.NewUpdater(selfupdate.Config{
+		Filters: []string{
+			fmt.Sprintf("routelens.*%s.*%s", runtime.GOOS, runtime.GOARCH),
+		},
+	})
+	if err != nil {
+		logging.Error("update", "Failed to create updater: %v", err)
+	}
+
+	// Check for latest release via selfupdate library
+	var latest *selfupdate.Release
+	var found bool
+	if updater != nil {
+		latest, found, err = updater.DetectLatest(githubSlug)
+		if err != nil {
+			logging.Warn("update", "Failed to check for updates via updater: %v", err)
+		}
+	}
+
+	// If no binary found, try to at least get the latest release version from GitHub API directly
+	if !found || latest == nil {
+		logging.Info("update", "No matching binary found, fetching latest release tag from GitHub API")
+		
+		// Direct GitHub API call to get latest release
+		apiURL := fmt.Sprintf("https://api.github.com/repos/%s/releases/latest", githubSlug)
+		client := &http.Client{Timeout: 10 * time.Second}
+		req, _ := http.NewRequest("GET", apiURL, nil)
+		req.Header.Set("Accept", "application/vnd.github.v3+json")
+		
+		resp, apiErr := client.Do(req)
+		if apiErr == nil && resp.StatusCode == 200 {
+			defer resp.Body.Close()
+			var release struct {
+				TagName     string    `json:"tag_name"`
+				Body        string    `json:"body"`
+				HTMLURL     string    `json:"html_url"`
+				PublishedAt time.Time `json:"published_at"`
+			}
+			if json.NewDecoder(resp.Body).Decode(&release) == nil {
+				response.LatestVersion = release.TagName
+				response.ReleaseNotes = release.Body
+				response.ReleaseURL = release.HTMLURL
+				if !release.PublishedAt.IsZero() {
+					response.PublishedAt = release.PublishedAt.Format(time.RFC3339)
+				}
+				
+				// Compare versions
+				if Version != "dev" {
+					latestVer := strings.TrimPrefix(release.TagName, "v")
+					currentVer := strings.TrimPrefix(Version, "v")
+					latestSem, err1 := semver.Parse(latestVer)
+					currentSem, err2 := semver.Parse(currentVer)
+					if err1 == nil && err2 == nil {
+						response.HasUpdate = latestSem.GT(currentSem)
+					}
+				}
+				logging.Info("update", "Latest release: %s, update available: %v", release.TagName, response.HasUpdate)
+			}
+		} else if apiErr != nil {
+			logging.Warn("update", "GitHub API error: %v", apiErr)
+		}
+	} else if latest != nil {
 		latestVer := latest.Version.String()
 		response.LatestVersion = "v" + latestVer
 		response.ReleaseNotes = latest.ReleaseNotes
@@ -98,26 +142,19 @@ func (s *Server) handleCheckUpdate(c *gin.Context) {
 
 		// Compare versions
 		if Version == "dev" {
-			// Dev builds always show updates available
 			response.HasUpdate = true
 		} else {
-			currentVer := Version
-			if len(currentVer) > 0 && currentVer[0] == 'v' {
-				currentVer = currentVer[1:]
-			}
+			currentVer := strings.TrimPrefix(Version, "v")
 			current, parseErr := semver.Parse(currentVer)
 			if parseErr == nil {
 				response.HasUpdate = latest.Version.GT(current)
 			} else {
-				// If we can't parse current version, assume update is available
 				logging.Warn("update", "Failed to parse current version '%s': %v", currentVer, parseErr)
 				response.HasUpdate = true
 			}
 		}
 
 		logging.Info("update", "Latest version: v%s, update available: %v", latestVer, response.HasUpdate)
-	} else {
-		logging.Info("update", "No releases found or already on latest version")
 	}
 
 	c.JSON(http.StatusOK, response)

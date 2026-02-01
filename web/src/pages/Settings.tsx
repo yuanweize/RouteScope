@@ -27,11 +27,12 @@ const Settings: React.FC = () => {
 
   useEffect(() => {
     fetchSystemInfo();
-    // Auto-check for updates on mount
+    // Auto-check for updates on mount (only once)
     handleCheckUpdateSilent();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Silent update check (no messages)
+  // Silent update check (no messages) - used only on initial mount
   const handleCheckUpdateSilent = async () => {
     try {
       const result = await checkUpdate();

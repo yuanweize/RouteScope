@@ -146,10 +146,11 @@ const About: React.FC = () => {
                 <span>{t('about.techStack')}</span>
               </Space>
             }
-            style={cardStyle}
+            style={{ ...cardStyle, height: '100%' }}
+            styles={{ body: { height: 'calc(100% - 57px)', display: 'flex', alignItems: 'center' } }}
             hoverable
           >
-            <Space wrap size={[8, 12]}>
+            <Space wrap size={[8, 12]} style={{ width: '100%' }}>
               {techStack.map((tech) => (
                 <Tag
                   key={tech.name}
@@ -179,7 +180,7 @@ const About: React.FC = () => {
                 <span>{t('about.resources')}</span>
               </Space>
             }
-            style={cardStyle}
+            style={{ ...cardStyle, height: '100%' }}
             hoverable
           >
             <Space direction="vertical" style={{ width: '100%' }} size="middle">
