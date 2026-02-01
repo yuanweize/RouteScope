@@ -11,7 +11,8 @@ permissions:
 jobs:
   release:
     name: Build for ${{ matrix.os }}/${{ matrix.arch }}
-    runs-on: ubuntu-latest
+    # Use macos-latest for darwin, ubuntu-latest for others
+    runs-on: ${{ (matrix.os == 'darwin') && 'macos-latest' || 'ubuntu-latest' }}
     strategy:
       matrix:
         include:
@@ -23,10 +24,6 @@ jobs:
             arch: arm64
             GOOS: linux
             GOARCH: arm64
-          # Mac Builds with CGO are tricky on Linux runners. 
-          # Keeping them enabled as requested, but they might fail without osxcross.
-          # Ideally, run on macos-latest for darwin builds, but matrix makes that harder to split logic.
-          # For now, keeping as is.
           - os: darwin
             arch: amd64
             GOOS: darwin
@@ -44,7 +41,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    # Frontend Build
+    # Frontend Build (Reusable across all platforms)
     - name: Set up Node.js
       uses: actions/setup-node@v3
       with:
@@ -55,7 +52,6 @@ jobs:
         cd web
         npm install
         npm run build
-        # Result is in web/dist, which is embedded by cmd/server
 
     # Go Build
     - name: Set up Go
@@ -68,19 +64,21 @@ jobs:
       env:
         GOOS: ${{ matrix.GOOS }}
         GOARCH: ${{ matrix.GOARCH }}
-        CGO_ENABLED: 1 # GORM/SQLite needs CGO
+        CGO_ENABLED: 1
       run: |
-        # Install Cross-compilation tools
-        if [ "${{ matrix.os }}" = "linux" ] && [ "${{ matrix.arch }}" = "arm64" ]; then
-          sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu
-          export CC=aarch64-linux-gnu-gcc
-        fi
-        if [ "${{ matrix.os }}" = "windows" ]; then
-          sudo apt-get update && sudo apt-get install -y gcc-mingw-w64
-          export CC=x86_64-w64-mingw32-gcc
+        # Cross-compilation setup for Ubuntu Runners
+        if [ "${{ runner.os }}" = "Linux" ]; then
+          if [ "${{ matrix.os }}" = "linux" ] && [ "${{ matrix.arch }}" = "arm64" ]; then
+            sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu
+            echo "CC=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+          fi
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            sudo apt-get update && sudo apt-get install -y gcc-mingw-w64
+            echo "CC=x86_64-w64-mingw32-gcc" >> $GITHUB_ENV
+          fi
         fi
         
-        # Build
+        # Build logic
         BINARY_NAME=routelens-${{ matrix.os }}-${{ matrix.arch }}
         if [ "${{ matrix.os }}" = "windows" ]; then
           BINARY_NAME=${BINARY_NAME}.exe
