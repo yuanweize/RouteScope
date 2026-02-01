@@ -2,26 +2,24 @@ package main
 
 import (
 	"log"
-	"os"
 
 	"github.com/yuanweize/RouteLens/internal/api"
+	"github.com/yuanweize/RouteLens/internal/cli"
 	"github.com/yuanweize/RouteLens/internal/monitor"
 	"github.com/yuanweize/RouteLens/pkg/storage"
 	"github.com/yuanweize/RouteLens/web"
 )
 
 func main() {
-	// 1. Config
-	dbPath := os.Getenv("RS_DB_PATH")
-	if dbPath == "" {
-		dbPath = "data/routescope.db"
+	rootCmd := cli.NewRootCmd(runServer)
+	if err := rootCmd.Execute(); err != nil {
+		log.Fatal(err)
 	}
-	port := os.Getenv("RS_HTTP_PORT")
-	if port == "" {
-		port = ":8080"
-	}
+}
+
+func runServer(port, dbPath string) {
 	// Gin requires port like ":8080"
-	if port[0] != ':' {
+	if port != "" && port[0] != ':' {
 		port = ":" + port
 	}
 
@@ -53,7 +51,7 @@ func seedTargets(db *storage.DB) {
 	existing, _ := db.GetTargets(false)
 	if len(existing) == 0 {
 		log.Println("Seeding default targets...")
-		db.SaveTarget(&storage.Target{Name: "Target A (China)", Address: "nas.yuanweize.win", Desc: "NAS node in China"})
-		db.SaveTarget(&storage.Target{Name: "Target B (Europe)", Address: "nue.eurun.top", Desc: "NUE node in Europe"})
+		db.SaveTarget(&storage.Target{Name: "Home NAS", Address: "nas.yuanweize.win", Desc: "NAS node in China", ProbeMode: "ICMP"})
+		db.SaveTarget(&storage.Target{Name: "Europe VPS", Address: "nue.eurun.top", Desc: "NUE node in Europe", ProbeMode: "ICMP"})
 	}
 }

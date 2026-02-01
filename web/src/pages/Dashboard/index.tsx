@@ -15,10 +15,10 @@ const Dashboard: React.FC = () => {
 
     const fetchInitialData = async () => {
         try {
-            const res = await getTargets();
-            setTargets(res.data);
-            if (res.data.length > 0 && !selectedTarget) {
-                setSelectedTarget(res.data[0].Address);
+            const data = await getTargets() as any;
+            setTargets(data);
+            if (data.length > 0 && !selectedTarget) {
+                setSelectedTarget(data[0].Address);
             }
         } catch (e) { console.error(e); }
     };
@@ -76,17 +76,34 @@ const Dashboard: React.FC = () => {
             <Row gutter={24} style={{ marginBottom: 24 }}>
                 <Col span={6}>
                     <Card bordered={false} hoverable>
-                        <Statistic title="Avg Latency" value={24.5} precision={1} suffix="ms" groupSeparator />
+                        <Statistic
+                            title="Avg Latency"
+                            value={history.length > 0 ? (history.reduce((a, b) => a + b.LatencyMs, 0) / history.length) : 0}
+                            precision={1}
+                            suffix="ms"
+                            groupSeparator
+                        />
                     </Card>
                 </Col>
                 <Col span={6}>
                     <Card bordered={false} hoverable>
-                        <Statistic title="Packet Loss" value={0} precision={2} suffix="%" style={{ color: 'var(--color-success-text)' }} />
+                        <Statistic
+                            title="Packet Loss"
+                            value={history.length > 0 ? (history.reduce((a, b) => a + b.PacketLoss, 0) / history.length) : 0}
+                            precision={2}
+                            suffix="%"
+                            style={{ color: 'var(--color-danger-text)' }}
+                        />
                     </Card>
                 </Col>
                 <Col span={6}>
                     <Card bordered={false} hoverable>
-                        <Statistic title="Bandwidth" value={120.5} precision={1} suffix="Mbps" />
+                        <Statistic
+                            title="Downlink"
+                            value={history.length > 0 ? history[history.length - 1].SpeedDown : 0}
+                            precision={1}
+                            suffix="Mbps"
+                        />
                     </Card>
                 </Col>
                 <Col span={6}>
@@ -99,7 +116,7 @@ const Dashboard: React.FC = () => {
             <Row gutter={24}>
                 <Col span={16}>
                     <Card title="Traffic Path Visualization" bordered={false} extra={<Typography.Text type="secondary">Real-time Path</Typography.Text>}>
-                        <MapChart />
+                        <MapChart target={selectedTarget} />
                     </Card>
                 </Col>
                 <Col span={8}>

@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"gorm.io/driver/sqlite"
+	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
@@ -41,7 +41,7 @@ func NewDB(dbPath string) (*DB, error) {
 	}
 
 	// Auto Migrate
-	if err := db.AutoMigrate(&MonitorRecord{}, &Target{}); err != nil {
+	if err := db.AutoMigrate(&MonitorRecord{}, &Target{}, &User{}); err != nil {
 		return nil, fmt.Errorf("migration failed: %w", err)
 	}
 

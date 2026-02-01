@@ -2,7 +2,6 @@ package monitor
 
 import (
 	"log"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -13,32 +12,17 @@ import (
 
 type Service struct {
 	db            *storage.DB
-	targets       []string
+	targets       []storage.Target
 	pingTicker    *time.Ticker
 	speedTicker   *time.Ticker
 	refreshTicker *time.Ticker
 	stopChan      chan struct{}
-
-	// Config
-	sshHost string
-	sshPort int
-	sshUser string
-	sshKey  string
 }
 
 func NewService(db *storage.DB) *Service {
-	// SSH Config
-	sshPort := 22
-	if p, err := strconv.Atoi(os.Getenv("RS_SSH_PORT")); err == nil {
-		sshPort = p
-	}
-
 	s := &Service{
 		db:       db,
 		stopChan: make(chan struct{}),
-		sshPort:  sshPort,
-		sshUser:  os.Getenv("RS_SSH_USER"),
-		sshKey:   os.Getenv("RS_SSH_KEY_PATH"),
 	}
 	s.refreshTargets() // Initial load
 	return s
@@ -50,16 +34,12 @@ func (s *Service) refreshTargets() {
 		log.Printf("Failed to refresh targets: %v", err)
 		return
 	}
-	var addrs []string
-	for _, t := range targets {
-		addrs = append(addrs, t.Address)
-	}
-	s.targets = addrs
+	s.targets = targets
 }
 
 func (s *Service) Start() {
 	s.pingTicker = time.NewTicker(30 * time.Second)
-	s.speedTicker = time.NewTicker(1 * time.Hour)
+	s.speedTicker = time.NewTicker(30 * time.Minute) // More frequent speed tests
 	s.refreshTicker = time.NewTicker(1 * time.Minute)
 
 	go s.runLoop()
@@ -67,15 +47,6 @@ func (s *Service) Start() {
 
 func (s *Service) Stop() {
 	close(s.stopChan)
-	if s.pingTicker != nil {
-		s.pingTicker.Stop()
-	}
-	if s.speedTicker != nil {
-		s.speedTicker.Stop()
-	}
-	if s.refreshTicker != nil {
-		s.refreshTicker.Stop()
-	}
 }
 
 func (s *Service) runLoop() {
@@ -96,34 +67,29 @@ func (s *Service) runLoop() {
 }
 
 func (s *Service) runPingTraceCycle() {
+	// Ping/Trace is common for almost all modes except maybe pure HTTP?
+	// User said "Mode A: ICMP/MTR Only (默认)": 仅监控延迟和丢包。
+	// So we keep ICMP/Trace as a baseline.
 	for _, target := range s.targets {
-		// 1. Ping
-		go func(t string) {
-			pinger := prober.NewICMPPinger(t, 5)
+		go func(t storage.Target) {
+			// 1. Ping
+			pinger := prober.NewICMPPinger(t.Address, 5)
 			res, err := pinger.Run()
 			if err != nil {
-				log.Printf("Ping failed for %s: %v", t, err)
+				log.Printf("Ping failed for %s: %v", t.Name, err)
 				return
 			}
 
-			// 2. Trace (only simple trace for now, or just save metrics)
-			// Note: For now we save Ping stats first.
-			// Full MTR is heavy, maybe run it less frequently?
-			// Let's run Trace every time for now, assuming low target count.
 			// 2. Trace
-			traceRunner := prober.NewTracerouteRunner(t)
-			traceRes, err := traceRunner.Run()
+			traceRunner := prober.NewTracerouteRunner(t.Address)
+			traceRes, _ := traceRunner.Run()
 
-			// Serialize Trace
-			var traceBytes []byte
-			if err == nil {
-				// TODO: Proper JSON marshaling later
-				_ = traceRes // Keep struct for future use
-				traceBytes = []byte("[]")
-			}
+			// Serialize Trace (Mock for now or minimal JSON)
+			_ = traceRes
+			traceBytes := []byte("[]")
 
 			rec := &storage.MonitorRecord{
-				Target:     t,
+				Target:     t.Address,
 				CreatedAt:  time.Now(),
 				LatencyMs:  float64(res.AvgRtt.Milliseconds()),
 				PacketLoss: res.LossRate,
@@ -135,82 +101,63 @@ func (s *Service) runPingTraceCycle() {
 }
 
 func (s *Service) runSpeedCycle() {
-	if !s.isInWindow() {
-		log.Println("Skipping Speed Test: Not in allowed time window")
-		return
-	}
-
-	if len(s.targets) > 0 {
-		// Example: Test first target with SSH
-		target := s.targets[0]
-
-		// Use configured keys
-		sshConfig := prober.SSHConfig{
-			User:      s.sshUser,
-			KeyPath:   s.sshKey, // path
-			Host:      target,
-			Port:      s.sshPort,
-			TestBytes: 50 * 1024 * 1024, // 50MB
+	for _, target := range s.targets {
+		if target.ProbeMode == "ICMP" || target.ProbeMode == "" {
+			continue // No speed test for ICMP only mode
 		}
 
-		runner := prober.NewSSHSpeedTester(sshConfig)
-		res, err := runner.Run()
-		if err != nil {
-			log.Printf("SSH Speed Test failed: %v", err)
-			return
-		}
+		go func(t storage.Target) {
+			var speedRes *prober.SpeedResult
+			var err error
 
-		rec := &storage.MonitorRecord{
-			Target:    target,
-			CreatedAt: time.Now(),
-			SpeedUp:   res.UploadSpeed,
-			SpeedDown: res.DownloadSpeed,
-		}
-		s.db.SaveRecord(rec)
+			switch t.ProbeMode {
+			case "SSH":
+				// Parse config (expects user:keypath)
+				parts := strings.Split(t.ProbeConfig, ":")
+				if len(parts) < 2 {
+					log.Printf("Invalid SSH config for %s", t.Name)
+					return
+				}
+				sshCfg := prober.SSHConfig{
+					User:      parts[0],
+					KeyPath:   parts[1],
+					Host:      t.Address,
+					Port:      22,
+					TestBytes: 20 * 1024 * 1024,
+				}
+				runner := prober.NewSSHSpeedTester(sshCfg)
+				speedRes, err = runner.Run()
+
+			case "HTTP":
+				// ProbeConfig is the URL
+				runner := prober.NewHTTPSpeedTester(t.ProbeConfig)
+				speedRes, err = runner.Run()
+
+			case "IPERF3":
+				port := 5201
+				if t.ProbeConfig != "" {
+					if p, err := strconv.Atoi(t.ProbeConfig); err == nil {
+						port = p
+					}
+				}
+				runner := prober.NewIperfProber(t.Address, port)
+				speedRes, err = runner.Run()
+			}
+
+			if err != nil {
+				log.Printf("Speed test failed for %s (%s): %v", t.Name, t.ProbeMode, err)
+				return
+			}
+
+			if speedRes != nil {
+				rec := &storage.MonitorRecord{
+					Target:    t.Address,
+					CreatedAt: time.Now(),
+					SpeedUp:   speedRes.UploadSpeed,
+					SpeedDown: speedRes.DownloadSpeed,
+				}
+				s.db.SaveRecord(rec)
+			}
+		}(target)
 	}
-}
-
-// isInWindow checks if current time is within RS_SPEED_WINDOW (e.g., "02:00-08:00")
-func (s *Service) isInWindow() bool {
-	window := os.Getenv("RS_SPEED_WINDOW")
-	if window == "" {
-		return true // No restriction
-	}
-
-	parts := strings.Split(window, "-")
-	if len(parts) != 2 {
-		return true // Invalid format, fail open
-	}
-
-	now := time.Now()
-	startTime, err1 := time.Parse("15:04", parts[0])
-	endTime, err2 := time.Parse("15:04", parts[1])
-
-	if err1 != nil || err2 != nil {
-		return true
-	}
-
-	// Adjust to today's date
-	start := time.Date(now.Year(), now.Month(), now.Day(), startTime.Hour(), startTime.Minute(), 0, 0, now.Location())
-	end := time.Date(now.Year(), now.Month(), now.Day(), endTime.Hour(), endTime.Minute(), 0, 0, now.Location())
-
-	// Handle cross-midnight (e.g. 23:00-06:00)
-	if end.Before(start) {
-		end = end.Add(24 * time.Hour)
-		if now.Before(start) {
-			start = start.Add(-24 * time.Hour)
-			end = end.Add(-24 * time.Hour)
-		}
-	}
-
-	return now.After(start) && now.Before(end)
-}
-
-// TriggerProbe is public for API use
-func (s *Service) TriggerProbe(target string, runTrace bool, runSpeed bool) error {
-	// Async execution
-	go func() {
-		// ... logic similar to cycle but single target
-	}()
-	return nil
 }

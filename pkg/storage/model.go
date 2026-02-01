@@ -13,6 +13,22 @@ type Target struct {
 	Address   string `gorm:"type:varchar(128);uniqueIndex;not null"` // IP or Domain
 	Desc      string `gorm:"type:text"`
 	Enabled   bool   `gorm:"default:true"`
+
+	// --- Probing Configuration (Phase 13) ---
+	// ProbeMode: ICMP, SSH, HTTP, IPERF3
+	ProbeMode string `gorm:"type:varchar(20);default:'ICMP'"`
+
+	// ProbeConfig (JSON stored as text for flexibility)
+	// Includes URL for HTTP, Port for Iperf, Credentials for SSH
+	ProbeConfig string `gorm:"type:text"`
+}
+
+// User represents a system administrator
+type User struct {
+	ID        uint      `gorm:"primaryKey"`
+	CreatedAt time.Time `gorm:"not null"`
+	Username  string    `gorm:"type:varchar(64);uniqueIndex;not null"`
+	Password  string    `gorm:"type:varchar(128);not null"` // Hashed
 }
 
 // MonitorRecord represents a single monitoring data point (snapshot)

@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"golang.org/x/crypto/bcrypt"
 )
 
 var secretKey []byte
@@ -66,12 +67,14 @@ func AuthMiddleware() gin.HandlerFunc {
 	}
 }
 
-// ValidatePassword checks environment variable RS_PASSWORD
-func ValidatePassword(inputPass string) bool {
-	sysPass := os.Getenv("RS_PASSWORD")
-	if sysPass == "" {
-		// Default password if not set (Warning in logs recommended)
-		return inputPass == "admin"
-	}
-	return inputPass == sysPass
+// HashPassword hashes a raw password
+func HashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+	return string(bytes), err
+}
+
+// ComparePassword compares hashed password with raw input
+func ComparePassword(hashed, raw string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hashed), []byte(raw))
+	return err == nil
 }

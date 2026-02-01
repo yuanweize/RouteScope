@@ -81,6 +81,8 @@ func (s *Server) setupRoutes() {
 	}
 
 	// Public API
+	s.router.GET("/api/v1/need-setup", s.handleNeedSetup)
+	s.router.POST("/api/v1/setup", s.handleSetup)
 	s.router.POST("/login", s.handleLogin)
 
 	// Protected API
@@ -90,6 +92,7 @@ func (s *Server) setupRoutes() {
 		api.GET("/status", s.handleStatus)
 		api.GET("/history", s.handleHistory)
 		api.POST("/probe", s.handleProbe)
+		api.POST("/user/password", s.handleUpdatePassword)
 
 		// Target CRUD
 		api.GET("/targets", s.handleGetTargets)
@@ -102,6 +105,7 @@ func (s *Server) setupRoutes() {
 
 func (s *Server) handleLogin(c *gin.Context) {
 	var req struct {
+		Username string `json:"username"`
 		Password string `json:"password"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -109,8 +113,14 @@ func (s *Server) handleLogin(c *gin.Context) {
 		return
 	}
 
-	if !auth.ValidatePassword(req.Password) {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid password"})
+	user, err := s.db.GetUser(req.Username)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+		return
+	}
+
+	if !auth.ComparePassword(user.Password, req.Password) {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
 	}
 
@@ -121,6 +131,66 @@ func (s *Server) handleLogin(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"token": token})
+}
+
+func (s *Server) handleNeedSetup(c *gin.Context) {
+	hasUser := s.db.HasAnyUser()
+	c.JSON(http.StatusOK, gin.H{"need_setup": !hasUser})
+}
+
+func (s *Server) handleSetup(c *gin.Context) {
+	if s.db.HasAnyUser() {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Setup already completed"})
+		return
+	}
+
+	var req struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	hashed, _ := auth.HashPassword(req.Password)
+	user := &storage.User{
+		Username: req.Username,
+		Password: hashed,
+	}
+	if err := s.db.SaveUser(user); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Setup successful"})
+}
+
+func (s *Server) handleUpdatePassword(c *gin.Context) {
+	var req struct {
+		NewPassword string `json:"new_password"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// For simplicity, update for "admin" or current user if we had identity in context
+	// Currently all protected routes are for admin
+	user, _ := s.db.GetUser("admin")
+	if user == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Admin user not found"})
+		return
+	}
+
+	hashed, _ := auth.HashPassword(req.NewPassword)
+	user.Password = hashed
+	if err := s.db.SaveUser(user); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Password updated"})
 }
 
 func (s *Server) handleStatus(c *gin.Context) {

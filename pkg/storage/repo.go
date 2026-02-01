@@ -49,3 +49,21 @@ func (d *DB) GetTargets(onlyEnabled bool) ([]Target, error) {
 	err := query.Find(&targets).Error
 	return targets, err
 }
+
+// --- User Management (Phase 13) ---
+
+func (d *DB) GetUser(username string) (*User, error) {
+	var u User
+	err := d.conn.Where("username = ?", username).First(&u).Error
+	return &u, err
+}
+
+func (d *DB) SaveUser(u *User) error {
+	return d.conn.Save(u).Error
+}
+
+func (d *DB) HasAnyUser() bool {
+	var count int64
+	d.conn.Model(&User{}).Count(&count)
+	return count > 0
+}

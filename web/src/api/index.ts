@@ -1,7 +1,19 @@
 import request from './request';
 
-export const login = (password: string) => {
-    return request.post<{ token: string }>('/login', { password });
+export const login = (username: string, password: string) => {
+    return request.post<{ token: string }>('/login', { username, password });
+};
+
+export const checkNeedSetup = () => {
+    return request.get<{ need_setup: boolean }>('/api/v1/need-setup');
+};
+
+export const setupAdmin = (data: any) => {
+    return request.post('/api/v1/setup', data);
+};
+
+export const updatePassword = (newPassword: string) => {
+    return request.post('/api/v1/user/password', { new_password: newPassword });
 };
 
 export const getStatus = () => {
@@ -22,6 +34,8 @@ export interface Target {
     Address: string;
     Desc: string;
     Enabled: boolean;
+    ProbeMode: string;
+    ProbeConfig: string;
 }
 
 export const getTargets = () => {

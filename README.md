@@ -1,92 +1,106 @@
-# RouteLens
+# 🛰️ RouteLens
+
+[English](#english) | [简体中文](#简体中文)
+
+<a name="english"></a>
+
+## English
+
+**RouteLens** is a professional-grade network observability platform that acts like an "X-ray" for your internet connection. It visualizes the entire path from your local device to remote targets, helping you pinpoint network bottlenecks—whether they exist in your local ISP, international backbones, or the destination datacenter.
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/yuanweize/RouteLens)](https://goreportcard.com/report/github.com/yuanweize/RouteLens)
-[![Build Status](https://img.shields.io/github/actions/workflow/status/yuanweize/RouteLens/release.yml?branch=main)](https://github.com/yuanweize/RouteLens/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8?logo=go)](https://go.dev/)
 
-[🇨🇳 中文文档](README_CN.md)
+### 🚀 Core Features
 
-**RouteLens** is a modern network observability platform built with **Go** and **React**. It acts like an "X-ray" for your internet connection, allowing you to visualize the entire path from your local ISP to your remote VPS.
+*   🛰️ **Interactive MTR Visualization**: Real-time traceroute paths rendered on a 3D world map using ECharts. Focus on specific paths to filter out noise.
+*   ⚡ **Multi-Mode Probing**:
+    *   **ICMP/MTR**: Traditional latency and packet loss tracking.
+    *   **SSH Stealth**: Bandwidth testing via SSH side-channels to bypass ISP throttling.
+    *   **HTTP Download**: Secure, agent-less bandwidth verification.
+    *   **Iperf3 Client**: High-performance benchmarking for server-to-server quality.
+*   📉 **Long-term Analytics**: Persistent historical recording of latency, jitter, and bandwidth trends.
+*   🛡️ **Modern Security**: Integrated database-backed authentication with a smooth web-based setup wizard.
+*   📦 **Single-Binary Delivery**: Built-in system service installation (`./routelens service install`).
 
-Unlike simple speed tests, RouteLens helps you answer: *"Is my connection slow because of my local ISP, the international backbone (CN2/9929), or the target datacenter?"*
+### 🛠️ Installation
 
-## 🌟 Key Features
-
-*   **🔍 Field-Tested MTR Tracing**: Visualize packet paths hop-by-hop using Native Go ICMP logic.
-        *   *No external dependencies:* Uses raw sockets directly, avoiding `os/exec("mtr")`.
-*   **🌍 GeoIP Visualization**: Map IP addresses to physical locations (City/Country/ISP) using MaxMind GeoLite2.
-*   **🛡️ Stealth Mode (Speed Test)**: High-frequency monitoring using **SSH side-channels** without triggering ISP traffic shaping or GFW detection.
-        *   **Zero Install**: No agent required on the target server.
-        *   **Stealthy**: Looks like standard SSH traffic.
-*   **� Modern Web Dashboard**: Built with **React** + **Arco Design** + **Apache ECharts** for beautiful, professional-grade visualization.
-*   **� High-Performance Storage**: Built-in SQLite + WAL mode.
-
-## 🛠️ Architecture
-
-```mermaid
-graph TD
-    User[User / Administrator] -->|Web UI| FE[React Frontend]
-    FE -->|API| BE[Go API Server]
-    
-    subgraph Core ["Probe Engine"]
-        ICMP[ICMP Pinger]
-        MTR[Traceroute Engine]
-        SSH[SSH Speed Tester]
-    end
-    
-    BE -->|Triggers| Core
-    
-    ICMP -->|Raw Socket| Network
-    MTR -->|Raw Socket| Network
-    SSH -->|Encrypted Tunnel| RemoteServer[Remote Target VPS]
-    
-    Core -->|"Results (via Channel)"| Writer[Async DB Writer]
-    Writer -->|"Batch Insert"| DB[(SQLite DB)]
-    DB -->|"JSON Data"| FE
-```
-
-## 🚀 Deployment Strategy
-
-RouteLens is designed to monitor **YOUR** local network quality. Therefore, the deployment strategy depends on what you want to monitor.
-
-| Platform | Recommended? | Analysis |
-| :--- | :--- | :--- |
-| **Local Device** (Mac/Linux/Pi) | ✅ **Best** | Monitors the *actual* connection from your home/office to the target. Supports full MTR/Ping via Raw Sockets. |
-| **Docker (Local)** | ✅ **Good** | Easy to manage. Requires `sysctls` or `cap_add` for Ping capabilities. |
-| **Render / Railway / Fly.io** | ⚠️ **Conditional** | Monitors the *cloud provider's* network, NOT your home network. Useful for "Reverse Monitoring" (checking how your home IP looks from overseas). |
-| **Vercel / Netlify** | ❌ **No** | These are Static/Serverless platforms. RouteLens requires a persistent background daemon for monitoring. |
-
-### Option 1: Systemd (Recommended for Debian/Ubuntu)
-
+#### 1. Quick Start (Binary)
+Download the latest [Release](https://github.com/yuanweize/RouteLens/releases), then run:
 ```bash
-git clone https://github.com/yuanweize/RouteLens.git
-cd RouteLens
-chmod +x scripts/install.sh
-./scripts/install.sh
+chmod +x routelens
+sudo ./routelens service install --port 8080
+```
+Visit `http://localhost:8080` to complete the **Setup Wizard**.
+
+#### 2. Docker Compose
+```yaml
+services:
+  routelens:
+    image: yuanweize/routelens:latest
+    container_name: routelens
+    cap_add:
+      - NET_RAW
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/root/data
+    restart: unless-stopped
 ```
 
-### Option 2: Docker
+---
 
+<a name="简体中文"></a>
+
+## 简体中文
+
+**RouteLens** 是一款专业级的网络观测平台，被誉为互联网连接的“X光机”。它能够实时可视化从本地到远程目标的完整链路，帮助您精准定位网络瓶颈——无论是本地运营商、国际骨干网（如 CN2/9929）还是目标机房的问题，都一目了然。
+
+### 🚀 核心特性
+
+*   🛰️ **交互式 MTR 可视化**: 基于 ECharts 的 3D 世界地图渲染，实时展示多跳路径。支持路径过滤，拒绝视觉干扰。
+*   ⚡ **全能探测引擎**:
+    *   **ICMP/MTR**: 经典的延迟与丢包率追踪。
+    *   **SSH 隐蔽测速**: 通过 SSH 侧信道进行带宽测试，有效规避运营商流量整形。
+    *   **HTTP 下载**: 安全、免客户端的带宽验证方案。
+    *   **Iperf3 客户端**: 专业级点对点性能基准测试。
+*   📉 **长期趋势分析**: 结构化存储历史数据，直观展示延迟、抖动及带宽的长期趋势图表。
+*   🛡️ **现代化安全加固**: 内置数据库鉴权，配合丝滑的 Web 前端初始化向导。
+*   📦 **单文件交付**: 原生内置系统服务安装逻辑 (`./routelens service install`)。
+
+### 🛠️ 安装指南
+
+#### 1. 快速开始 (二进制)
+下载最新的 [Release](https://github.com/yuanweize/RouteLens/releases)，执行：
 ```bash
-docker build -t routelens .
-docker run -d \
-  --name routelens \
-  --cap-add=NET_RAW \
-  -p 8080:8080 \
-  -v $(pwd)/data:/data \
-  -e RS_TARGETS="8.8.8.8,1.1.1.1" \
-  routelens
+chmod +x routelens
+sudo ./routelens service install --port 8080
+```
+访问 `http://localhost:8080` 即可进入**初始化向导**。
+
+#### 2. Docker Compose 部署
+```yaml
+services:
+  routelens:
+    image: yuanweize/routelens:latest
+    container_name: routelens
+    cap_add:
+      - NET_RAW
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/root/data
+    restart: unless-stopped
 ```
 
-## ⚙️ Configuration
+## ⚙️ Configuration / 配置
 
-| Variable | Description | Default |
+| 环境变量 / Env | 描述 / Description | 默认值 / Default |
 | :--- | :--- | :--- |
-| `RS_HTTP_PORT` | HTTP port | `8080` |
-| `RS_DB_PATH` | Database path | `/data/routelens.db` |
-| `RS_SSH_USER` | SSH User for speed test | `root` |
-| `RS_SPEED_WINDOW` | Allowed window for speed tests (e.g. `02:00-08:00`) | *(All Day)* |
+| `RS_PORT` | HTTP 服务端口 | `8080` |
+| `RS_DB_PATH` | SQLite 数据库路径 | `./routelens.db` |
+| `RS_JWT_SECRET` | JWT 签名密钥 | *(随机生成)* |
 
 ## License
-
 MIT
