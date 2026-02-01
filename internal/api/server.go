@@ -87,10 +87,14 @@ func (s *Server) setupRoutes() {
 	if s.distFS != nil {
 		dist, _ := fs.Sub(s.distFS, "dist")
 
-		// Serve static files from /assets
-		// Vite builds put all assets in /assets, so we map /assets to dist/assets
+		// Serve static files from /assets with long cache (files have content hash)
+		// Vite builds put all assets in /assets with hashed filenames like index-CugdYbR7.js
 		assetsFS, _ := fs.Sub(dist, "assets")
-		s.router.StaticFS("/assets", http.FS(assetsFS))
+		s.router.Group("/assets").Use(func(c *gin.Context) {
+			// Hashed assets: cache for 1 year (immutable)
+			c.Header("Cache-Control", "public, max-age=31536000, immutable")
+			c.Next()
+		}).StaticFS("/", http.FS(assetsFS))
 
 		// SPA Fallback: All other non-API routes serve index.html
 		s.router.NoRoute(func(c *gin.Context) {
@@ -107,7 +111,10 @@ func (s *Server) setupRoutes() {
 				return
 			}
 
-			// Serve index.html with 200 OK for all SPA routes
+			// index.html: no-cache to ensure browser always checks for updates
+			c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
+			c.Header("Pragma", "no-cache")
+			c.Header("Expires", "0")
 			c.Data(http.StatusOK, "text/html; charset=utf-8", indexHTML)
 		})
 	}
