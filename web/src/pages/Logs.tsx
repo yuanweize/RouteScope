@@ -151,32 +151,54 @@ const Logs: React.FC = () => {
             style={{ paddingTop: 100 }}
           />
         ) : (
-          logs.map((entry: LogEntry, idx: number) => (
-            <div key={idx} style={{ marginBottom: 4, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-              <Typography.Text style={{ color: '#8b949e', flexShrink: 0, fontSize: 11 }}>
-                {formatTimestamp(entry.timestamp)}
-              </Typography.Text>
-              <Tag
-                color={levelColors[entry.level] || 'default'}
-                style={{ margin: 0, flexShrink: 0, fontSize: 10, lineHeight: '16px' }}
-              >
-                {entry.level}
-              </Tag>
-              {entry.source && (
-                <Typography.Text style={{ color: '#58a6ff', flexShrink: 0 }}>
-                  [{entry.source}]
-                </Typography.Text>
-              )}
-              <Typography.Text
+          logs.map((entry: LogEntry, idx: number) => {
+            // Determine row background based on log level
+            let rowBackground = 'transparent';
+            if (entry.level === 'ERROR') {
+              rowBackground = isDark ? 'rgba(248, 81, 73, 0.15)' : 'rgba(248, 81, 73, 0.1)';
+            } else if (entry.level === 'WARN') {
+              rowBackground = isDark ? 'rgba(210, 153, 34, 0.15)' : 'rgba(210, 153, 34, 0.1)';
+            }
+
+            return (
+              <div
+                key={idx}
                 style={{
-                  color: entry.level === 'ERROR' ? '#f85149' : entry.level === 'WARN' ? '#d29922' : '#c9d1d9',
-                  wordBreak: 'break-word',
+                  marginBottom: 2,
+                  padding: '4px 8px',
+                  borderRadius: 4,
+                  display: 'flex',
+                  gap: 8,
+                  alignItems: 'flex-start',
+                  background: rowBackground,
+                  borderLeft: entry.level === 'ERROR' ? '3px solid #f85149' : entry.level === 'WARN' ? '3px solid #d29922' : '3px solid transparent',
                 }}
               >
-                {entry.message}
-              </Typography.Text>
-            </div>
-          ))
+                <Typography.Text style={{ color: '#8b949e', flexShrink: 0, fontSize: 11 }}>
+                  {formatTimestamp(entry.timestamp)}
+                </Typography.Text>
+                <Tag
+                  color={levelColors[entry.level] || 'default'}
+                  style={{ margin: 0, flexShrink: 0, fontSize: 10, lineHeight: '16px' }}
+                >
+                  {entry.level}
+                </Tag>
+                {entry.source && (
+                  <Typography.Text style={{ color: '#58a6ff', flexShrink: 0 }}>
+                    [{entry.source}]
+                  </Typography.Text>
+                )}
+                <Typography.Text
+                  style={{
+                    color: entry.level === 'ERROR' ? '#f85149' : entry.level === 'WARN' ? '#d29922' : '#c9d1d9',
+                    wordBreak: 'break-word',
+                  }}
+                >
+                  {entry.message}
+                </Typography.Text>
+              </div>
+            );
+          })
         )}
       </div>
     </Card>

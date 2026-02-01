@@ -90,30 +90,38 @@ func (s *Service) runPingTraceCycle() {
 	// Ping/Trace is common for almost all modes except maybe pure HTTP?
 	// User said "Mode A: ICMP/MTR Only (默认)": 仅监控延迟和丢包。
 	// So we keep ICMP/Trace as a baseline.
+	logging.Info("monitor", "Starting ping/trace cycle for %d targets", len(s.targets))
 	for _, target := range s.targets {
 		go s.runPingTraceForTarget(target)
 	}
 }
 
 func (s *Service) runSpeedCycle() {
+	speedTargets := 0
 	for _, target := range s.targets {
 		if target.ProbeType == storage.ProbeModeICMP || target.ProbeType == "" {
 			continue // No speed test for ICMP only mode
 		}
-
+		speedTargets++
 		go s.runSpeedForTarget(target)
+	}
+	if speedTargets > 0 {
+		logging.Info("monitor", "Starting speed test cycle for %d targets", speedTargets)
 	}
 }
 
 func (s *Service) runPingTraceForTarget(t storage.Target) {
+	logging.Debug("probe", "[MTR] Starting probe for %s (%s)", t.Name, t.Address)
+
 	// 1. Ping (fallback latency)
 	pinger := prober.NewICMPPinger(t.Address, 5)
 	pingRes, err := pinger.Run()
 	if err != nil {
 		log.Printf("Ping failed for %s: %v", t.Name, err)
-		logging.Warn("probe", "Ping failed for %s: %v", t.Name, err)
+		logging.Error("probe", "[ICMP] Ping failed for %s (%s): %v", t.Name, t.Address, err)
 		return
 	}
+	logging.Info("probe", "[ICMP] Ping OK for %s: latency=%.1fms, loss=%.1f%%", t.Name, float64(pingRes.AvgRtt.Milliseconds()), pingRes.LossRate)
 
 	// 2. MTR (preferred) or Traceroute
 	var traceBytes []byte
@@ -125,9 +133,11 @@ func (s *Service) runPingTraceForTarget(t storage.Target) {
 		traceBytes = s.serializeTraceFromMTR(mtrRes, truncated)
 		latencyMs = selectedLatency
 		packetLoss = selectTargetLoss(mtrRes, packetLoss)
+		logging.Info("probe", "[MTR] Trace complete for %s: %d hops, latency=%.1fms", t.Name, len(mtrRes.Hops), latencyMs)
 	} else {
 		if mtrErr != nil {
 			log.Printf("MTR unavailable for %s: %v", t.Name, mtrErr)
+			logging.Warn("probe", "[MTR] Fallback to traceroute for %s: %v", t.Name, mtrErr)
 		}
 		traceRunner := prober.NewTracerouteRunner(t.Address)
 		traceRes, _ := traceRunner.Run()
@@ -152,6 +162,8 @@ func (s *Service) runSpeedForTarget(t storage.Target) {
 	var speedRes *prober.SpeedResult
 	var err error
 	var configErr error
+
+	logging.Info("speedtest", "Starting %s speed test for %s (%s)", t.ProbeType, t.Name, t.Address)
 
 	switch t.ProbeType {
 	case storage.ProbeModeSSH:

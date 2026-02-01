@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 
+	"github.com/yuanweize/RouteLens/pkg/logging"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -39,11 +41,28 @@ func NewSSHSpeedTester(cfg SSHConfig) *SSHSpeedTester {
 }
 
 func (s *SSHSpeedTester) Run() (*SpeedResult, error) {
+	target := fmt.Sprintf("%s:%d", s.config.Host, s.config.Port)
+	logging.Info("ssh", "[SSH] Starting speed test for %s@%s", s.config.User, target)
+
 	client, err := s.connect()
 	if err != nil {
+		// Categorize SSH connection errors for better diagnostics
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "unable to authenticate") || strings.Contains(errMsg, "no supported methods") {
+			logging.Error("ssh", "[SSH] Authentication failed for %s: invalid credentials or key", target)
+		} else if strings.Contains(errMsg, "connection refused") {
+			logging.Error("ssh", "[SSH] Connection refused by %s: port closed or firewall blocking", target)
+		} else if strings.Contains(errMsg, "timeout") || strings.Contains(errMsg, "i/o timeout") {
+			logging.Error("ssh", "[SSH] Connection timeout for %s: host unreachable", target)
+		} else if strings.Contains(errMsg, "no route to host") {
+			logging.Error("ssh", "[SSH] No route to host %s: network unreachable", target)
+		} else {
+			logging.Error("ssh", "[SSH] Connection failed for %s: %v", target, err)
+		}
 		return nil, fmt.Errorf("ssh connection failed: %w", err)
 	}
 	defer client.Close()
+	logging.Info("ssh", "[SSH] Connected to %s successfully", target)
 
 	result := &SpeedResult{
 		Timestamp: time.Now(),
@@ -51,19 +70,25 @@ func (s *SSHSpeedTester) Run() (*SpeedResult, error) {
 
 	// 1. Measure Download Speed (Remote -> Local)
 	// Command: cat /dev/zero | head -c <TestBytes>
+	logging.Debug("ssh", "[SSH] Starting download test for %s (%d bytes)", target, s.config.TestBytes)
 	downSpeed, err := s.measureDownload(client)
 	if err != nil {
+		logging.Error("ssh", "[SSH] Download test failed for %s: %v", target, err)
 		return nil, fmt.Errorf("download test failed: %w", err)
 	}
 	result.DownloadSpeed = downSpeed
+	logging.Info("ssh", "[SSH] Download test for %s: %.2f Mbps", target, downSpeed)
 
 	// 2. Measure Upload Speed (Local -> Remote)
 	// Command: cat > /dev/null
+	logging.Debug("ssh", "[SSH] Starting upload test for %s (%d bytes)", target, s.config.TestBytes)
 	upSpeed, err := s.measureUpload(client)
 	if err != nil {
+		logging.Error("ssh", "[SSH] Upload test failed for %s: %v", target, err)
 		return nil, fmt.Errorf("upload test failed: %w", err)
 	}
 	result.UploadSpeed = upSpeed
+	logging.Info("ssh", "[SSH] Upload test for %s: %.2f Mbps", target, upSpeed)
 
 	return result, nil
 }

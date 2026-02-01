@@ -1,1 +1,1 @@
-Placeholder
+# Placeholder for git static analysis
