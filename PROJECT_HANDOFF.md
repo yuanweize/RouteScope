@@ -25,5 +25,10 @@ GeoIP auto-downloads on first run to ./data/geoip.
 - [x] Hop details table expanded by default
 - [x] Mermaid diagrams render without errors
 
+## CI/CD Architecture
+- Configuration Location: Release Please config lives in .github/release-please-config.json and .github/.release-please-manifest.json (not in repo root).
+- Workflow: Commit -> Auto PR -> Merge -> Auto Release -> Auto Build -> Auto Docker.
+- Do Not Touch: Do not disable .github/workflows/release.yml; it publishes release binaries.
+
 ## Open Items
 - None
