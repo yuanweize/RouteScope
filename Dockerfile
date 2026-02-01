@@ -1,5 +1,16 @@
+# Frontend Build Stage
+FROM node:18-alpine AS web-builder
+
+WORKDIR /web
+
+COPY web/package.json web/package-lock.json ./
+RUN npm ci
+
+COPY web/ ./
+RUN npm run build
+
 # Build Stage
-FROM golang:1.21-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 WORKDIR /app
 
@@ -11,6 +22,9 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
+
+# Copy built frontend assets
+COPY --from=web-builder /web/dist ./web/dist
 
 # Build with CGO enabled for SQLite
 RUN CGO_ENABLED=1 go build -ldflags="-s -w" -o routelens ./cmd/server

@@ -1,0 +1,9 @@
+.git
+.github
+build
+routelens_linux_amd64
+web/node_modules
+web/dist
+**/*.log
+**/*.tmp
+**/.DS_Store

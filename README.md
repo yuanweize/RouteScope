@@ -14,7 +14,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/yuanweize/RouteLens)](https://goreportcard.com/report/github.com/yuanweize/RouteLens)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Release: v1.1.0](https://img.shields.io/badge/Release-v1.1.0-blue.svg)](https://github.com/yuanweize/RouteLens/releases)
-[![Docker Image](https://img.shields.io/docker/v/yuanweize/routelens?label=Docker%20Image&logo=docker)](https://hub.docker.com/r/yuanweize/routelens)
+[![Docker Image](https://img.shields.io/docker/v/ghcr.io/yuanweize/routelens?label=GHCR%20Image&logo=github)](https://github.com/yuanweize/RouteLens/pkgs/container/routelens)
 
 ---
 
@@ -59,7 +59,7 @@ Open `http://localhost:8080` → `/setup` to initialize admin. GeoIP will be dow
 version: '3.8'
 services:
   routelens:
-    image: yuanweize/routelens:latest
+    image: ghcr.io/yuanweize/routelens:latest
     container_name: routelens
     cap_add:
       - NET_RAW
