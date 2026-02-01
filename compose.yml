@@ -1,7 +1,6 @@
 services:
   routelens:
-    image: routelens:latest
-    build: .
+    image: ghcr.io/yuanweize/routelens:latest
     container_name: routelens
     network_mode: host
     cap_add:
