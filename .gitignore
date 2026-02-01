@@ -1,0 +1,6 @@
+# Build artifacts
+routelens_linux_amd64
+**/routelens_linux_amd64
+
+# OS / editor
+.DS_Store
