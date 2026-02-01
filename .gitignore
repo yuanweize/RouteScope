@@ -3,6 +3,10 @@ routelens_linux_amd64
 **/routelens_linux_amd64
 build/
 *.tar.gz
+data/
+web/node_modules/
+web/dist/*
+!web/dist/.gitkeep
 
 # OS / editor
 .DS_Store
