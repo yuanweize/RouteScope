@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"runtime"
@@ -27,6 +28,17 @@ const (
 	githubRepo  = "RouteLens"
 	githubSlug  = githubOwner + "/" + githubRepo
 )
+
+// getGitHubToken returns the GitHub token from environment if available
+func getGitHubToken() string {
+	if token := os.Getenv("GITHUB_TOKEN"); token != "" {
+		return token
+	}
+	if token := os.Getenv("GH_TOKEN"); token != "" {
+		return token
+	}
+	return ""
+}
 
 // UpdateCheckResponse represents the update check result
 type UpdateCheckResponse struct {
@@ -69,7 +81,112 @@ func (s *Server) handleCheckUpdate(c *gin.Context) {
 		HasUpdate:      false,
 	}
 
-	// Create updater with filter for correct binary
+	client := &http.Client{Timeout: 15 * time.Second}
+	token := getGitHubToken()
+
+	// Strategy 1: Try GitHub Releases API (with token if available)
+	latestVersion := s.tryGitHubReleasesAPI(client, token)
+
+	// Strategy 2: Fallback to raw manifest file from master branch
+	if latestVersion == "" {
+		logging.Info("update", "Releases API failed, trying raw manifest fallback")
+		latestVersion = s.tryRawManifestFallback(client)
+	}
+
+	// Strategy 3: Try selfupdate library (may also hit rate limit)
+	if latestVersion == "" {
+		logging.Info("update", "Manifest fallback failed, trying selfupdate library")
+		latestVersion = s.trySelfupdateLibrary()
+	}
+
+	if latestVersion != "" {
+		response.LatestVersion = latestVersion
+
+		// Compare versions (handle both "v1.2.0" and "1.2.0" formats)
+		if Version != "dev" {
+			latestVer := strings.TrimPrefix(latestVersion, "v")
+			currentVer := strings.TrimPrefix(Version, "v")
+			latestSem, err1 := semver.Parse(latestVer)
+			currentSem, err2 := semver.Parse(currentVer)
+			if err1 == nil && err2 == nil {
+				response.HasUpdate = latestSem.GT(currentSem)
+			} else {
+				logging.Warn("update", "Version parse error: latest=%v, current=%v", err1, err2)
+			}
+		}
+		logging.Info("update", "Latest version: %s, current: %s, update available: %v",
+			latestVersion, Version, response.HasUpdate)
+	} else {
+		logging.Warn("update", "All update check methods failed")
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
+// tryGitHubReleasesAPI attempts to get latest version from GitHub Releases API
+func (s *Server) tryGitHubReleasesAPI(client *http.Client, token string) string {
+	apiURL := fmt.Sprintf("https://api.github.com/repos/%s/releases/latest", githubSlug)
+	req, _ := http.NewRequest("GET", apiURL, nil)
+	req.Header.Set("Accept", "application/vnd.github.v3+json")
+	req.Header.Set("User-Agent", "RouteLens-Updater")
+	if token != "" {
+		req.Header.Set("Authorization", "token "+token)
+		logging.Debug("update", "Using GitHub token for API request")
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		logging.Warn("update", "GitHub Releases API request failed: %v", err)
+		return ""
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		body, _ := io.ReadAll(resp.Body)
+		logging.Warn("update", "GitHub Releases API returned %d: %s", resp.StatusCode, string(body)[:min(200, len(body))])
+		return ""
+	}
+
+	var release struct {
+		TagName string `json:"tag_name"`
+	}
+	if json.NewDecoder(resp.Body).Decode(&release) == nil && release.TagName != "" {
+		logging.Info("update", "GitHub Releases API returned: %s", release.TagName)
+		return release.TagName
+	}
+	return ""
+}
+
+// tryRawManifestFallback reads version from raw manifest file on master branch
+func (s *Server) tryRawManifestFallback(client *http.Client) string {
+	manifestURL := fmt.Sprintf("https://raw.githubusercontent.com/%s/master/.github/.release-please-manifest.json", githubSlug)
+	req, _ := http.NewRequest("GET", manifestURL, nil)
+	req.Header.Set("User-Agent", "RouteLens-Updater")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		logging.Warn("update", "Raw manifest request failed: %v", err)
+		return ""
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		logging.Warn("update", "Raw manifest returned %d", resp.StatusCode)
+		return ""
+	}
+
+	var manifest map[string]string
+	if json.NewDecoder(resp.Body).Decode(&manifest) == nil {
+		if version, ok := manifest["."]; ok && version != "" {
+			logging.Info("update", "Raw manifest returned version: %s", version)
+			return "v" + strings.TrimPrefix(version, "v")
+		}
+	}
+	return ""
+}
+
+// trySelfupdateLibrary uses the selfupdate library to detect latest version
+func (s *Server) trySelfupdateLibrary() string {
 	updater, err := selfupdate.NewUpdater(selfupdate.Config{
 		Filters: []string{
 			fmt.Sprintf("routelens.*%s.*%s", runtime.GOOS, runtime.GOARCH),
@@ -77,87 +194,18 @@ func (s *Server) handleCheckUpdate(c *gin.Context) {
 	})
 	if err != nil {
 		logging.Error("update", "Failed to create updater: %v", err)
+		return ""
 	}
 
-	// Check for latest release via selfupdate library
-	var latest *selfupdate.Release
-	var found bool
-	if updater != nil {
-		latest, found, err = updater.DetectLatest(githubSlug)
-		if err != nil {
-			logging.Warn("update", "Failed to check for updates via updater: %v", err)
-		}
+	latest, found, err := updater.DetectLatest(githubSlug)
+	if err != nil {
+		logging.Warn("update", "Selfupdate library failed: %v", err)
+		return ""
 	}
-
-	// If no binary found, try to at least get the latest release version from GitHub API directly
-	if !found || latest == nil {
-		logging.Info("update", "No matching binary found, fetching latest release tag from GitHub API")
-
-		// Direct GitHub API call to get latest release
-		apiURL := fmt.Sprintf("https://api.github.com/repos/%s/releases/latest", githubSlug)
-		client := &http.Client{Timeout: 10 * time.Second}
-		req, _ := http.NewRequest("GET", apiURL, nil)
-		req.Header.Set("Accept", "application/vnd.github.v3+json")
-
-		resp, apiErr := client.Do(req)
-		if apiErr == nil && resp.StatusCode == 200 {
-			defer resp.Body.Close()
-			var release struct {
-				TagName     string    `json:"tag_name"`
-				Body        string    `json:"body"`
-				HTMLURL     string    `json:"html_url"`
-				PublishedAt time.Time `json:"published_at"`
-			}
-			if json.NewDecoder(resp.Body).Decode(&release) == nil {
-				response.LatestVersion = release.TagName
-				response.ReleaseNotes = release.Body
-				response.ReleaseURL = release.HTMLURL
-				if !release.PublishedAt.IsZero() {
-					response.PublishedAt = release.PublishedAt.Format(time.RFC3339)
-				}
-
-				// Compare versions
-				if Version != "dev" {
-					latestVer := strings.TrimPrefix(release.TagName, "v")
-					currentVer := strings.TrimPrefix(Version, "v")
-					latestSem, err1 := semver.Parse(latestVer)
-					currentSem, err2 := semver.Parse(currentVer)
-					if err1 == nil && err2 == nil {
-						response.HasUpdate = latestSem.GT(currentSem)
-					}
-				}
-				logging.Info("update", "Latest release: %s, update available: %v", release.TagName, response.HasUpdate)
-			}
-		} else if apiErr != nil {
-			logging.Warn("update", "GitHub API error: %v", apiErr)
-		}
-	} else if latest != nil {
-		latestVer := latest.Version.String()
-		response.LatestVersion = "v" + latestVer
-		response.ReleaseNotes = latest.ReleaseNotes
-		response.ReleaseURL = latest.URL
-		if !latest.PublishedAt.IsZero() {
-			response.PublishedAt = latest.PublishedAt.Format(time.RFC3339)
-		}
-
-		// Compare versions
-		if Version == "dev" {
-			response.HasUpdate = true
-		} else {
-			currentVer := strings.TrimPrefix(Version, "v")
-			current, parseErr := semver.Parse(currentVer)
-			if parseErr == nil {
-				response.HasUpdate = latest.Version.GT(current)
-			} else {
-				logging.Warn("update", "Failed to parse current version '%s': %v", currentVer, parseErr)
-				response.HasUpdate = true
-			}
-		}
-
-		logging.Info("update", "Latest version: v%s, update available: %v", latestVer, response.HasUpdate)
+	if found && latest != nil {
+		return "v" + latest.Version.String()
 	}
-
-	c.JSON(http.StatusOK, response)
+	return ""
 }
 
 // handlePerformUpdate downloads and applies the update

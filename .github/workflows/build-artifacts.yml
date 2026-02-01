@@ -79,8 +79,12 @@ jobs:
       - name: Build binary
         run: |
           mkdir -p build
+          VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "dev")
+          COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+          BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           CGO_ENABLED=0 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
-            go build -ldflags="-s -w" -o build/routelens-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }} ./cmd/server/main.go
+            go build -ldflags="-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${BUILD_DATE}" \
+            -o build/routelens-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }} ./cmd/server
 
       - name: Package artifact
         shell: bash

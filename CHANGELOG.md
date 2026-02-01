@@ -1,7 +1,33 @@
 # Changelog
 
-## [1.3.0](https://github.com/yuanweize/RouteLens/compare/v1.2.0...v1.3.0) (2026-02-01)
+## [1.2.9](https://github.com/yuanweize/RouteLens/compare/v1.2.0...v1.2.9) (2026-02-02)
 
+
+### Features
+
+* **self-update:** AdGuard Home 风格的应用内一键更新
+* **ci:** Standardize ldflags version injection across all build workflows
+* **i18n:** Complete Settings page translations (Chinese/English)
+* **update-check:** Multi-strategy version detection with fallback (GitHub API → Raw Manifest → selfupdate)
+
+
+### Bug Fixes
+
+* **critical:** Fix ldflags injection path (main.version instead of api.Version)
+* **frontend:** Remove duplicate Settings component, unify to Ant Design
+* **target:** Add enable/disable functionality for monitoring targets
+* **ssh-scheduler:** Fix dead code in SSH speed test scheduling
+
+
+### Chores
+
+* Clean up orphaned releases and tags
+* Consolidate version management with release-please
+
+
+## [1.3.0](https://github.com/yuanweize/RouteLens/compare/v1.2.0...v1.3.0) (2026-02-01) [DEPRECATED]
+
+> This release was not properly published. Changes merged into v1.2.9.
 
 ### Features
 
