@@ -8,10 +8,11 @@ Type=simple
 User=routelens
 Group=routelens
 # Environment variables file
-EnvironmentFile=/etc/routelens/env
+EnvironmentFile=/opt/routelens/env
 
-# Binary Path (Default install location)
-ExecStart=/usr/local/bin/routelens
+# Binary Path
+WorkingDirectory=/opt/routelens
+ExecStart=/opt/routelens/routelens
 
 # Restart policy
 Restart=always

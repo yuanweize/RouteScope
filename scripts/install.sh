@@ -5,49 +5,48 @@ set -e
 GREEN='\033[0;32m'
 NC='\033[0m'
 
-echo -e "${GREEN}==> Installing RouteLens...${NC}"
+echo -e "${GREEN}==> Installing RouteLens in /opt/routelens...${NC}"
 
 # 1. Build
 echo -e "${GREEN}==> Building binary...${NC}"
-go build -o routescope ./cmd/probe_test
-# Note: In Phase 6, we will point this to cmd/server
+go build -o routelens ./cmd/server
 
 # 2. User & Group
-echo -e "${GREEN}==> Creating user 'routescope'...${NC}"
-if ! id "routescope" &>/dev/null; then
-    sudo useradd -r -s /bin/false routescope
+echo -e "${GREEN}==> Creating user 'routelens'...${NC}"
+if ! id "routelens" &>/dev/null; then
+    sudo useradd -r -s /bin/false routelens
 fi
 
-# 3. Install Binary
-echo -e "${GREEN}==> Installing binary to /usr/local/bin...${NC}"
-sudo mv routescope /usr/local/bin/
-sudo chmod +x /usr/local/bin/routescope
+# 3. Permissions
+echo -e "${GREEN}==> Setting permissions...${NC}"
+sudo chmod +x routelens
 
 # 4. Set Capabilities (Allow Ping/MTR without root)
 echo -e "${GREEN}==> Setting network capabilities...${NC}"
-sudo setcap cap_net_raw,cap_net_bind_service+ep /usr/local/bin/routescope
+sudo setcap cap_net_raw,cap_net_bind_service+ep routelens
 
-# 5. Config Directories
-echo -e "${GREEN}==> Creating directories...${NC}"
-sudo mkdir -p /etc/routescope
-sudo mkdir -p /var/lib/routescope
-sudo chown routescope:routescope /var/lib/routescope
-
-# 6. Install Config
-if [ ! -f /etc/routescope/env ]; then
-    echo -e "${GREEN}==> Installing default config to /etc/routescope/env...${NC}"
-    sudo cp deploy/env.example /etc/routescope/env
+# 5. Environment Config
+if [ ! -f env ]; then
+    echo -e "${GREEN}==> Creating default env...${NC}"
+    cp deploy/env.example env
+    # Set default DB path to current dir
+    sed -i 's|RS_DB_PATH=.*|RS_DB_PATH=/opt/routelens/routelens.db|' env
 fi
+
+# 6. Ownership
+echo -e "${GREEN}==> Setting ownership to routelens...${NC}"
+sudo chown routelens:routelens /opt/routelens -R
 
 # 7. Install Service
 echo -e "${GREEN}==> Installing Systemd service...${NC}"
-sudo cp deploy/routescope.service /etc/systemd/system/
+sudo cp deploy/routelens.service /etc/systemd/system/
 sudo systemctl daemon-reload
 
 # 8. Enable & Start
 echo -e "${GREEN}==> Enabling and starting service...${NC}"
-sudo systemctl enable routescope
-sudo systemctl restart routescope
+sudo systemctl enable routelens
+sudo systemctl restart routelens
 
 echo -e "${GREEN}==> Installation Complete!${NC}"
-echo "Check status with: sudo systemctl status routescope"
+echo "Dashboard should be available at http://$(hostname -I | awk '{print $1}'):8080"
+echo "Check status with: sudo systemctl status routelens"

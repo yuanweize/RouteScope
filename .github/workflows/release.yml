@@ -11,7 +11,6 @@ permissions:
 jobs:
   release:
     name: Build for ${{ matrix.os }}/${{ matrix.arch }}
-    # Use macos-latest for darwin, ubuntu-latest for others
     runs-on: ${{ (matrix.os == 'darwin') && 'macos-latest' || 'ubuntu-latest' }}
     strategy:
       matrix:
@@ -41,7 +40,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    # Frontend Build (Reusable across all platforms)
+    # Frontend Build
     - name: Set up Node.js
       uses: actions/setup-node@v3
       with:
@@ -57,34 +56,40 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v4
       with:
-        go-version: '1.21'
+        go-version: '1.24'
         check-latest: true
 
-    - name: Build Binary
-      env:
-        GOOS: ${{ matrix.GOOS }}
-        GOARCH: ${{ matrix.GOARCH }}
-        CGO_ENABLED: 1
+    - name: Install Cross-Compilers (Linux Only)
+      if: runner.os == 'Linux'
       run: |
-        # Cross-compilation setup for Ubuntu Runners
+        if [ "${{ matrix.os }}" = "linux" ] && [ "${{ matrix.arch }}" = "arm64" ]; then
+          sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu
+        fi
+        if [ "${{ matrix.os }}" = "windows" ]; then
+          sudo apt-get update && sudo apt-get install -y gcc-mingw-w64
+        fi
+
+    - name: Build Binary
+      shell: bash
+      run: |
+        # Set CC based on target
+        export CC=gcc
         if [ "${{ runner.os }}" = "Linux" ]; then
           if [ "${{ matrix.os }}" = "linux" ] && [ "${{ matrix.arch }}" = "arm64" ]; then
-            sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu
-            echo "CC=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+            export CC=aarch64-linux-gnu-gcc
           fi
           if [ "${{ matrix.os }}" = "windows" ]; then
-            sudo apt-get update && sudo apt-get install -y gcc-mingw-w64
-            echo "CC=x86_64-w64-mingw32-gcc" >> $GITHUB_ENV
+            export CC=x86_64-w64-mingw32-gcc
           fi
         fi
         
         # Build logic
         BINARY_NAME=routelens-${{ matrix.os }}-${{ matrix.arch }}
-        if [ "${{ matrix.os }}" = "windows" ]; then
-          BINARY_NAME=${BINARY_NAME}.exe
-        fi
+        [ "${{ matrix.os }}" = "windows" ] && BINARY_NAME="${BINARY_NAME}.exe"
         
-        go build -v -o build/$BINARY_NAME ./cmd/server
+        echo "Using CC: $CC"
+        CGO_ENABLED=1 GOOS=${{ matrix.GOOS }} GOARCH=${{ matrix.GOARCH }} CC=$CC \
+          go build -v -o build/$BINARY_NAME ./cmd/server
 
     - name: Upload Release Asset
       uses: softprops/action-gh-release@v1
