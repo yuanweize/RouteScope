@@ -1,0 +1,168 @@
+# GoReleaser configuration for RouteLens
+# Documentation: https://goreleaser.com
+version: 2
+
+project_name: routelens
+
+before:
+  hooks:
+    # Ensure go.mod is tidy
+    - go mod tidy
+    # Frontend must be built before this runs (handled in CI)
+    # Verify web/dist exists
+    - sh -c "test -d web/dist || (echo 'ERROR: web/dist not found! Build frontend first.' && exit 1)"
+
+builds:
+  - id: routelens
+    main: ./cmd/server
+    binary: routelens
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      # Windows ARM64 is rare, skip it
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.ShortCommit}}
+      - -X main.date={{.Date}}
+    flags:
+      - -trimpath
+
+archives:
+  - id: default
+    format: tar.gz
+    # Use zip for Windows
+    format_overrides:
+      - goos: windows
+        format: zip
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - README_CN.md
+      - LICENSE
+      - deploy/routelens.service
+      - deploy/env.example
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+# Generate .deb and .rpm packages
+nfpms:
+  - id: routelens-packages
+    package_name: routelens
+    vendor: RouteLens Contributors
+    homepage: https://github.com/yuanweize/RouteLens
+    maintainer: RouteLens <noreply@github.com>
+    description: |-
+      RouteLens - Network Route Monitoring & Visualization Tool
+      A self-hosted network monitoring solution with real-time traceroute,
+      latency tracking, and geographic visualization.
+    license: MIT
+    formats:
+      - deb
+      - rpm
+    bindir: /usr/local/bin
+    contents:
+      # Systemd service file
+      - src: deploy/routelens.service
+        dst: /lib/systemd/system/routelens.service
+        type: config
+      # Example environment file
+      - src: deploy/env.example
+        dst: /etc/routelens/env.example
+        type: config
+      # Create data directory
+      - dst: /var/lib/routelens
+        type: dir
+        file_info:
+          mode: 0755
+      # Create config directory
+      - dst: /etc/routelens
+        type: dir
+        file_info:
+          mode: 0755
+    scripts:
+      postinstall: deploy/scripts/postinstall.sh
+      preremove: deploy/scripts/preremove.sh
+    recommends:
+      - mtr
+    rpm:
+      group: Applications/Internet
+    deb:
+      lintian_overrides:
+        - statically-linked-binary
+        - changelog-file-missing-in-native-package
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+      - "^chore:"
+      - Merge pull request
+      - Merge branch
+  groups:
+    - title: "🚀 Features"
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: "🐛 Bug Fixes"
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: "🔧 Performance"
+      regexp: '^.*?perf(\([[:word:]]+\))??!?:.+$'
+      order: 2
+    - title: "📦 Others"
+      order: 999
+
+release:
+  github:
+    owner: yuanweize
+    name: RouteLens
+  draft: false
+  prerelease: auto
+  mode: replace
+  header: |
+    ## RouteLens {{ .Tag }}
+    
+    ### Installation
+    
+    **Binary (all platforms):**
+    Download the appropriate archive for your platform and extract.
+    
+    **Debian/Ubuntu:**
+    ```bash
+    sudo dpkg -i routelens_{{ .Version }}_linux_amd64.deb
+    sudo systemctl enable --now routelens
+    ```
+    
+    **CentOS/RHEL:**
+    ```bash
+    sudo rpm -i routelens_{{ .Version }}_linux_amd64.rpm
+    sudo systemctl enable --now routelens
+    ```
+    
+    **Docker:**
+    ```bash
+    docker pull ghcr.io/yuanweize/routelens:{{ .Tag }}
+    ```
+  footer: |
+    ---
+    **Full Changelog**: https://github.com/yuanweize/RouteLens/compare/{{ .PreviousTag }}...{{ .Tag }}
+
+# Announce (optional - can be enabled later)
+# announce:
+#   discord:
+#     enabled: false

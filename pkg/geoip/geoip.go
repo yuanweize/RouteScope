@@ -8,14 +8,14 @@ import (
 )
 
 type Location struct {
-	City       string
-	Subdiv     string // Province/State
-	Country    string
-	ISOCode    string
-	ISP        string
-	Latitude   float64
-	Longitude  float64
-	Precision  string // "city", "subdivision", "country", "none"
+	City      string
+	Subdiv    string // Province/State
+	Country   string
+	ISOCode   string
+	ISP       string
+	Latitude  float64
+	Longitude float64
+	Precision string // "city", "subdivision", "country", "none"
 }
 
 type Provider struct {
