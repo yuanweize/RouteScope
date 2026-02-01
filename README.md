@@ -5,9 +5,9 @@
 
 [🇨🇳 中文文档](README_CN.md) | [🇺🇸 English](README.md)
 
-**RouteScope (RouteLens)** is a modern, high-performance network observability platform designed to visualize the "black box" of internet routing.
+> **A modern network link observation platform for monitoring latency, packet loss, and bandwidth.**
 
-It empowers users to monitor latency, packet loss, and bandwidth quality between local nodes and remote servers in real-time. By leveraging MTR-style automated tracing and SSH side-channel speed testing, RouteScope helps you pinpoint exactly where network degradation occurs—whether it's the local ISP, international gateway, or the target datacenter.
+**RouteScope (RouteLens)** empowers users to visualize the "black box" of internet routing by monitoring latency, packet loss, and bandwidth quality between local nodes and remote servers in real-time. By leveraging MTR-style automated tracing and SSH side-channel speed testing, it helps you pinpoint exactly where network degradation occurs.
 
 ## 🌟 Key Features
 

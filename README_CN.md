@@ -5,7 +5,10 @@
 
 [🇨🇳 中文文档](README_CN.md) | [🇺🇸 English](README.md)
 
-**RouteScope** 是一个现代化的网络链路观测平台。它通过 PV (Path Visualization) 技术与 SSH 旁路测速机制，帮助用户实时监控从本地到目标服务器的延迟、丢包率与带宽质量。
+> **现代化网络链路观测平台，支持延迟、丢包与带宽监控。**
+> **A modern network link observation platform for monitoring latency, packet loss, and bandwidth.**
+
+**RouteScope** 通过 PV (Path Visualization) 技术与 SSH 旁路测速机制，帮助用户实时监控从本地到目标服务器的延迟、丢包率与带宽质量。
 
 通过 RouteScope，你可以像医生看 X 光片一样，精准定位网络拥堵是发生在本地 ISP、国际骨干网（如 CN2/9929）还是目标机房，从而彻底告别“网络玄学”。
 
