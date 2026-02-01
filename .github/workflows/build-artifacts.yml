@@ -29,8 +29,32 @@ permissions:
   contents: read
 
 jobs:
-  build-linux-amd64:
+  build-artifacts:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            ext: ""
+            pkg: tar
+          - goos: linux
+            goarch: arm64
+            ext: ""
+            pkg: tar
+          - goos: darwin
+            goarch: amd64
+            ext: ""
+            pkg: tar
+          - goos: darwin
+            goarch: arm64
+            ext: ""
+            pkg: tar
+          - goos: windows
+            goarch: amd64
+            ext: ".exe"
+            pkg: zip
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -52,20 +76,28 @@ jobs:
           go-version: '1.24'
           check-latest: true
 
-      - name: Build Linux AMD64
+      - name: Build binary
         run: |
           mkdir -p build
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o build/routelens-linux-amd64 ./cmd/server/main.go
+          CGO_ENABLED=0 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
+            go build -ldflags="-s -w" -o build/routelens-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }} ./cmd/server/main.go
 
       - name: Package artifact
+        shell: bash
         run: |
-          tar -czf build/routelens-linux-amd64.tar.gz \
-            -C build routelens-linux-amd64 \
-            -C deploy env.example routelens.service
+          name="routelens-${{ matrix.goos }}-${{ matrix.goarch }}"
+          bin="build/${name}${{ matrix.ext }}"
+          if [ "${{ matrix.pkg }}" = "zip" ]; then
+            zip -j "build/${name}.zip" "$bin" deploy/env.example deploy/routelens.service
+            echo "PACKAGE=build/${name}.zip" >> $GITHUB_ENV
+          else
+            tar -czf "build/${name}.tar.gz" -C build "${name}${{ matrix.ext }}" -C deploy env.example routelens.service
+            echo "PACKAGE=build/${name}.tar.gz" >> $GITHUB_ENV
+          fi
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: routelens-linux-amd64
-          path: build/routelens-linux-amd64.tar.gz
+          name: routelens-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: ${{ env.PACKAGE }}
           retention-days: 14
