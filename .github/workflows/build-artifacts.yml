@@ -86,13 +86,17 @@ jobs:
         shell: bash
         run: |
           name="routelens-${{ matrix.goos }}-${{ matrix.goarch }}"
-          bin="build/${name}${{ matrix.ext }}"
+          bin="${GITHUB_WORKSPACE}/build/${name}${{ matrix.ext }}"
           if [ "${{ matrix.pkg }}" = "zip" ]; then
-            zip -j "build/${name}.zip" "$bin" deploy/env.example deploy/routelens.service
-            echo "PACKAGE=build/${name}.zip" >> $GITHUB_ENV
+            zip -j "${GITHUB_WORKSPACE}/build/${name}.zip" "$bin" \
+              "${GITHUB_WORKSPACE}/deploy/env.example" \
+              "${GITHUB_WORKSPACE}/deploy/routelens.service"
+            echo "PACKAGE=${GITHUB_WORKSPACE}/build/${name}.zip" >> $GITHUB_ENV
           else
-            tar -czf "build/${name}.tar.gz" -C build "${name}${{ matrix.ext }}" -C deploy env.example routelens.service
-            echo "PACKAGE=build/${name}.tar.gz" >> $GITHUB_ENV
+            tar -czf "${GITHUB_WORKSPACE}/build/${name}.tar.gz" \
+              -C "${GITHUB_WORKSPACE}/build" "${name}${{ matrix.ext }}" \
+              -C "${GITHUB_WORKSPACE}/deploy" env.example routelens.service
+            echo "PACKAGE=${GITHUB_WORKSPACE}/build/${name}.tar.gz" >> $GITHUB_ENV
           fi
 
       - name: Upload artifact
