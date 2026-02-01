@@ -84,7 +84,12 @@ func (t *TracerouteRunner) Run() (*TraceResult, error) {
 		}
 
 		// Wait for reply
-		err = c.SetReadDeadline(time.Now().Add(t.Timeout))
+		if err := c.SetReadDeadline(time.Now().Add(t.Timeout)); err != nil {
+			hop.IP = "*"
+			hop.Loss = 100.0
+			res.Hops = append(res.Hops, hop)
+			continue
+		}
 		reply := make([]byte, 1500)
 		n, peer, err := c.ReadFrom(reply)
 
