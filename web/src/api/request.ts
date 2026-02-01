@@ -35,4 +35,11 @@ instance.interceptors.response.use(
     }
 );
 
-export default instance;
+const request = {
+    get: <T = any>(url: string, config?: any) => instance.get<T, T>(url, config),
+    post: <T = any>(url: string, data?: any, config?: any) => instance.post<T, T>(url, data, config),
+    put: <T = any>(url: string, data?: any, config?: any) => instance.put<T, T>(url, data, config),
+    delete: <T = any>(url: string, config?: any) => instance.delete<T, T>(url, config),
+};
+
+export default request;

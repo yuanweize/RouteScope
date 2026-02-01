@@ -51,7 +51,7 @@ func seedTargets(db *storage.DB) {
 	existing, _ := db.GetTargets(false)
 	if len(existing) == 0 {
 		log.Println("Seeding default targets...")
-		db.SaveTarget(&storage.Target{Name: "Home NAS", Address: "nas.yuanweize.win", Desc: "NAS node in China", ProbeMode: "ICMP"})
-		db.SaveTarget(&storage.Target{Name: "Europe VPS", Address: "nue.eurun.top", Desc: "NUE node in Europe", ProbeMode: "ICMP"})
+		db.SaveTarget(&storage.Target{Name: "Home NAS", Address: "nas.yuanweize.win", Desc: "NAS node in China", ProbeType: storage.ProbeModeICMP})
+		db.SaveTarget(&storage.Target{Name: "Europe VPS", Address: "nue.eurun.top", Desc: "NUE node in Europe", ProbeType: storage.ProbeModeICMP})
 	}
 }

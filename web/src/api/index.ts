@@ -24,18 +24,18 @@ export const getHistory = (params: { target?: string; start?: string; end?: stri
     return request.get('/api/v1/history', { params });
 };
 
-export const triggerProbe = () => {
-    return request.post('/api/v1/probe');
+export const triggerProbe = (payload?: { target?: string }) => {
+    return request.post('/api/v1/probe', payload || {});
 };
 
 export interface Target {
-    ID?: number;
-    Name: string;
-    Address: string;
-    Desc: string;
-    Enabled: boolean;
-    ProbeMode: string;
-    ProbeConfig: string;
+    id?: number;
+    name: string;
+    address: string;
+    desc: string;
+    enabled: boolean;
+    probe_type: string;
+    probe_config: string;
 }
 
 export const getTargets = () => {
@@ -48,4 +48,8 @@ export const saveTarget = (target: Target) => {
 
 export const deleteTarget = (id: number) => {
     return request.delete(`/api/v1/targets/${id}`);
+};
+
+export const getLatestTrace = (target: string) => {
+    return request.get('/api/v1/trace', { params: { target } });
 };

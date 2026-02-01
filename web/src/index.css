@@ -12,6 +12,8 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  background: #17171a;
+  color: #fff;
 }
 
 /* Custom scrollbar for themed look */
@@ -44,4 +46,30 @@ body {
 
 .arco-card:hover {
   box-shadow: 0 4px 12px var(--color-fill-3);
+}
+
+/* Dark mode zebra stripe fix for Arco tables and cards */
+body[arco-theme='dark'] .arco-card,
+body[arco-theme='dark'] .arco-table,
+body[arco-theme='dark'] .arco-table-container,
+body[arco-theme='dark'] .arco-table-thead,
+body[arco-theme='dark'] .arco-table-tbody {
+  background: var(--color-bg-1);
+}
+
+body[arco-theme='dark'] .arco-table-th,
+body[arco-theme='dark'] .arco-table-td,
+body[arco-theme='dark'] .arco-table-tr {
+  background: transparent;
+}
+
+/* Nuclear dark mode overrides */
+body[arco-theme='dark'] {
+  background-color: #17171a;
+  color: #fff;
+}
+
+.arco-card {
+  background-color: #232324;
+  border-color: #333;
 }

@@ -24,7 +24,7 @@ func NewRootCmd(runServer func(port, dbPath string)) *cobra.Command {
 		Short: "RouteLens - Modern Network Observation Platform",
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			// Resolve default DB path if not provided
-			if dbPath == "data/routescope.db" {
+			if dbPath == "data/routelens.db" {
 				// Check if env exists
 				if env := os.Getenv("RS_DB_PATH"); env != "" {
 					dbPath = env
@@ -42,27 +42,26 @@ func NewRootCmd(runServer func(port, dbPath string)) *cobra.Command {
 	}
 
 	rootCmd.PersistentFlags().StringVarP(&port, "port", "p", "8080", "HTTP port to listen on")
-	rootCmd.PersistentFlags().StringVarP(&dbPath, "db", "d", "data/routescope.db", "Path to SQLite database")
+	rootCmd.PersistentFlags().StringVarP(&dbPath, "db", "d", "data/routelens.db", "Path to SQLite database")
 
 	rootCmd.AddCommand(newServiceCmd())
-	rootCmd.AddCommand(newUsersCmd())
+	rootCmd.AddCommand(newAdminCmd())
 
 	return rootCmd
 }
 
-func newUsersCmd() *cobra.Command {
-	usersCmd := &cobra.Command{
-		Use:   "users",
-		Short: "User management",
+func newAdminCmd() *cobra.Command {
+	adminCmd := &cobra.Command{
+		Use:   "admin",
+		Short: "Admin management",
 	}
 
 	resetPassCmd := &cobra.Command{
-		Use:   "reset-password [username] [new_password]",
-		Short: "Reset a user's password",
-		Args:  cobra.ExactArgs(2),
+		Use:   "reset-password [new_password]",
+		Short: "Reset the admin password",
+		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			username := args[0]
-			password := args[1]
+			password := args[0]
 
 			db, err := storage.NewDB(dbPath)
 			if err != nil {
@@ -74,11 +73,10 @@ func newUsersCmd() *cobra.Command {
 				log.Fatalf("Failed to hash password: %v", err)
 			}
 
-			user, err := db.GetUser(username)
+			user, err := db.GetUser("admin")
 			if err != nil {
-				// Maybe try to create it?
 				user = &storage.User{
-					Username: username,
+					Username: "admin",
 					Password: hashed,
 				}
 			} else {
@@ -89,12 +87,12 @@ func newUsersCmd() *cobra.Command {
 				log.Fatalf("Failed to save user: %v", err)
 			}
 
-			fmt.Printf("Password for user '%s' has been reset successfully.\n", username)
+			fmt.Println("Admin password has been reset successfully.")
 		},
 	}
 
-	usersCmd.AddCommand(resetPassCmd)
-	return usersCmd
+	adminCmd.AddCommand(resetPassCmd)
+	return adminCmd
 }
 
 func newServiceCmd() *cobra.Command {
@@ -103,6 +101,8 @@ func newServiceCmd() *cobra.Command {
 		Short: "Service management (install/uninstall)",
 	}
 
+	var force bool
+
 	installCmd := &cobra.Command{
 		Use:   "install",
 		Short: "Install RouteLens as a systemd service (Linux only)",
@@ -110,16 +110,28 @@ func newServiceCmd() *cobra.Command {
 			if runtime.GOOS != "linux" {
 				log.Fatal("Service installation is only supported on Linux")
 			}
+			installService(force)
+		},
+	}
+	installCmd.Flags().BoolVar(&force, "force", false, "Overwrite existing service file if present")
 
-			installService()
+	uninstallCmd := &cobra.Command{
+		Use:   "uninstall",
+		Short: "Uninstall RouteLens systemd service (Linux only)",
+		Run: func(cmd *cobra.Command, args []string) {
+			if runtime.GOOS != "linux" {
+				log.Fatal("Service uninstallation is only supported on Linux")
+			}
+			uninstallService()
 		},
 	}
 
 	serviceCmd.AddCommand(installCmd)
+	serviceCmd.AddCommand(uninstallCmd)
 	return serviceCmd
 }
 
-func installService() {
+func installService(force bool) {
 	exePath, err := os.Executable()
 	if err != nil {
 		log.Fatalf("Failed to get executable path: %v", err)
@@ -144,6 +156,12 @@ WantedBy=multi-user.target
 `, exeDir, exePath, port, dbPath, port, dbPath)
 
 	servicePath := "/etc/systemd/system/routelens.service"
+	if !force {
+		if _, err := os.Stat(servicePath); err == nil {
+			log.Fatalf("Service file already exists at %s (use --force to overwrite)", servicePath)
+		}
+	}
+
 	err = os.WriteFile(servicePath, []byte(serviceContent), 0644)
 	if err != nil {
 		log.Fatalf("Failed to write service file: %v. Are you root?", err)
@@ -157,6 +175,19 @@ WantedBy=multi-user.target
 	runCmd("systemctl", "start", "routelens")
 
 	fmt.Println("RouteLens service installed and started successfully!")
+}
+
+func uninstallService() {
+	servicePath := "/etc/systemd/system/routelens.service"
+	runCmd("systemctl", "stop", "routelens")
+	runCmd("systemctl", "disable", "routelens")
+
+	if err := os.Remove(servicePath); err != nil && !os.IsNotExist(err) {
+		log.Fatalf("Failed to remove service file: %v", err)
+	}
+
+	runCmd("systemctl", "daemon-reload")
+	fmt.Println("RouteLens service uninstalled successfully!")
 }
 
 func runCmd(name string, args ...string) {

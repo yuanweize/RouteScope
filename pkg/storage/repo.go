@@ -30,6 +30,28 @@ func (d *DB) GetRecordDetail(id uint) (*MonitorRecord, error) {
 	return &r, err
 }
 
+// GetLatestRecord fetches the most recent record for a target
+func (d *DB) GetLatestRecord(target string) (*MonitorRecord, error) {
+	var r MonitorRecord
+	err := d.conn.
+		Where("target = ?", target).
+		Order("created_at desc").
+		Limit(1).
+		First(&r).Error
+	return &r, err
+}
+
+// GetLatestTrace fetches the most recent record that includes traceroute data
+func (d *DB) GetLatestTrace(target string) (*MonitorRecord, error) {
+	var r MonitorRecord
+	err := d.conn.
+		Where("target = ? AND trace_json IS NOT NULL AND trace_json != ''", target).
+		Order("created_at desc").
+		Limit(1).
+		First(&r).Error
+	return &r, err
+}
+
 // --- Target Management ---
 
 func (d *DB) SaveTarget(t *Target) error {

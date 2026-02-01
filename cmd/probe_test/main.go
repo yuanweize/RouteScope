@@ -55,19 +55,6 @@ func runDBTest(path string) {
 		log.Fatalf("DB Init failed: %v", err)
 	}
 
-	fmt.Println("Saving a mock record...")
-	mockRec := &storage.MonitorRecord{
-		CreatedAt:  time.Now(),
-		Target:     "8.8.8.8",
-		LatencyMs:  12.5,
-		PacketLoss: 0.0,
-		TraceJson:  []byte(`[{"hop":1, "ip":"192.168.1.1"}, {"hop":2, "ip":"10.0.0.1"}]`),
-	}
-	if err := db.SaveRecord(mockRec); err != nil {
-		log.Fatalf("Save failed: %v", err)
-	}
-	fmt.Println("Record saved!")
-
 	fmt.Println("Querying history...")
 	recs, err := db.GetHistory("8.8.8.8", time.Now().Add(-1*time.Hour), time.Now().Add(1*time.Hour))
 	if err != nil {

@@ -34,12 +34,12 @@ const Settings: React.FC = () => {
     const handleAdd = () => {
         setEditingId(null);
         form.resetFields();
-        form.setFieldValue('ProbeMode', 'ICMP');
+        form.setFieldValue('probe_type', 'MODE_ICMP');
         setIsModalVisible(true);
     };
 
     const handleEdit = (record: Target) => {
-        setEditingId(record.ID || null);
+        setEditingId(record.id || null);
         form.setFieldsValue(record);
         setIsModalVisible(true);
     };
@@ -57,7 +57,7 @@ const Settings: React.FC = () => {
     const handleOk = async () => {
         try {
             const values = await form.validate();
-            await saveTarget({ ...values, ID: editingId || undefined });
+            await saveTarget({ ...values, id: editingId || undefined });
             Message.success(editingId ? 'Target updated' : 'Target added');
             setIsModalVisible(false);
             fetchTargets();
@@ -75,12 +75,12 @@ const Settings: React.FC = () => {
     };
 
     const columns = [
-        { title: 'Name', dataIndex: 'Name', key: 'Name' },
-        { title: 'Address', dataIndex: 'Address', key: 'Address' },
-        { title: 'Probe Mode', dataIndex: 'ProbeMode', key: 'ProbeMode', render: (val: string) => <Tag color="arcoblue">{val || 'ICMP'}</Tag> },
+        { title: 'Name', dataIndex: 'name', key: 'name' },
+        { title: 'Address', dataIndex: 'address', key: 'address' },
+        { title: 'Probe Mode', dataIndex: 'probe_type', key: 'probe_type', render: (val: string) => <Tag color="arcoblue">{val || 'MODE_ICMP'}</Tag> },
         {
             title: 'Status',
-            dataIndex: 'Enabled',
+            dataIndex: 'enabled',
             render: (enabled: boolean) => <Switch checked={enabled} disabled />,
         },
         {
@@ -91,7 +91,7 @@ const Settings: React.FC = () => {
                     <Button type="text" icon={<IconEdit />} onClick={() => handleEdit(record)}>Edit</Button>
                     <Popconfirm
                         title="Delete this target?"
-                        onOk={() => { if (record.ID) handleDelete(record.ID) }}
+                        onOk={() => { if (record.id) handleDelete(record.id) }}
                     >
                         <Button type="text" status="danger" icon={<IconDelete />}>Delete</Button>
                     </Popconfirm>
@@ -117,7 +117,7 @@ const Settings: React.FC = () => {
                             columns={columns}
                             data={targets}
                             loading={loading}
-                            rowKey="ID"
+                            rowKey="id"
                         />
                     </Card>
                 </TabPane>
@@ -162,12 +162,12 @@ const Settings: React.FC = () => {
                 <Form form={form} layout="vertical">
                     <Row gutter={16}>
                         <Col span={12}>
-                            <Form.Item label="Name" field="Name" rules={[{ required: true }]}>
+                            <Form.Item label="Name" field="name" rules={[{ required: true }]}>
                                 <Input placeholder="e.g. HK VPS" />
                             </Form.Item>
                         </Col>
                         <Col span={12}>
-                            <Form.Item label="Address (IP/Domain)" field="Address" rules={[{ required: true }]}>
+                            <Form.Item label="Address (IP/Domain)" field="address" rules={[{ required: true }]}>
                                 <Input placeholder="e.g. 1.2.3.4" />
                             </Form.Item>
                         </Col>
@@ -175,26 +175,26 @@ const Settings: React.FC = () => {
 
                     <Row gutter={16}>
                         <Col span={12}>
-                            <Form.Item label="Probe Mode" field="ProbeMode" initialValue="ICMP">
+                            <Form.Item label="Probe Mode" field="probe_type" initialValue="MODE_ICMP">
                                 <Select>
-                                    <Select.Option value="ICMP">ICMP/MTR (Default)</Select.Option>
-                                    <Select.Option value="SSH">SSH Speed Test</Select.Option>
-                                    <Select.Option value="HTTP">HTTP Download</Select.Option>
-                                    <Select.Option value="IPERF3">Iperf3 Client</Select.Option>
+                                    <Select.Option value="MODE_ICMP">ICMP/MTR (Default)</Select.Option>
+                                    <Select.Option value="MODE_SSH">SSH Speed Test</Select.Option>
+                                    <Select.Option value="MODE_HTTP">HTTP Download</Select.Option>
+                                    <Select.Option value="MODE_IPERF">Iperf3 Client</Select.Option>
                                 </Select>
                             </Form.Item>
                         </Col>
                         <Col span={12}>
-                            <Form.Item label="Probe Config" field="ProbeConfig" tooltip="SSH: 'user:key_path', HTTP: 'url', IPERF: 'port'">
-                                <Input placeholder="Config string..." />
+                            <Form.Item label="Probe Config" field="probe_config" tooltip="JSON: SSH {user,password,key_path,port}, HTTP {url}, IPERF {port}">
+                                <Input placeholder='{"url":"https://example.com/test.zip"}' />
                             </Form.Item>
                         </Col>
                     </Row>
 
-                    <Form.Item label="Description" field="Desc">
+                    <Form.Item label="Description" field="desc">
                         <Input.TextArea placeholder="Details about this target..." />
                     </Form.Item>
-                    <Form.Item label="Enabled" field="Enabled" triggerPropName="checked" initialValue={true}>
+                    <Form.Item label="Enabled" field="enabled" triggerPropName="checked" initialValue={true}>
                         <Switch />
                     </Form.Item>
                 </Form>

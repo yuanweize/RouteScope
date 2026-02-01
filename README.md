@@ -1,106 +1,120 @@
 # 🛰️ RouteLens
 
-[English](#english) | [简体中文](#简体中文)
+**A Modern, Stealthy, All-in-One Network Observability Platform.**
 
-<a name="english"></a>
+**现代化、隐身、全栈式的网络链路观测平台。**
 
-## English
+[English](#english) | [简体中文](README_CN.md)
 
-**RouteLens** is a professional-grade network observability platform that acts like an "X-ray" for your internet connection. It visualizes the entire path from your local device to remote targets, helping you pinpoint network bottlenecks—whether they exist in your local ISP, international backbones, or the destination datacenter.
-
-[![Go Report Card](https://goreportcard.com/badge/github.com/yuanweize/RouteLens)](https://goreportcard.com/report/github.com/yuanweize/RouteLens)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8?logo=go)](https://go.dev/)
-
-### 🚀 Core Features
-
-*   🛰️ **Interactive MTR Visualization**: Real-time traceroute paths rendered on a 3D world map using ECharts. Focus on specific paths to filter out noise.
-*   ⚡ **Multi-Mode Probing**:
-    *   **ICMP/MTR**: Traditional latency and packet loss tracking.
-    *   **SSH Stealth**: Bandwidth testing via SSH side-channels to bypass ISP throttling.
-    *   **HTTP Download**: Secure, agent-less bandwidth verification.
-    *   **Iperf3 Client**: High-performance benchmarking for server-to-server quality.
-*   📉 **Long-term Analytics**: Persistent historical recording of latency, jitter, and bandwidth trends.
-*   🛡️ **Modern Security**: Integrated database-backed authentication with a smooth web-based setup wizard.
-*   📦 **Single-Binary Delivery**: Built-in system service installation (`./routelens service install`).
-
-### 🛠️ Installation
-
-#### 1. Quick Start (Binary)
-Download the latest [Release](https://github.com/yuanweize/RouteLens/releases), then run:
-```bash
-chmod +x routelens
-sudo ./routelens service install --port 8080
-```
-Visit `http://localhost:8080` to complete the **Setup Wizard**.
-
-#### 2. Docker Compose
-```yaml
-services:
-  routelens:
-    image: yuanweize/routelens:latest
-    container_name: routelens
-    cap_add:
-      - NET_RAW
-    ports:
-      - "8080:8080"
-    volumes:
-      - ./data:/root/data
-    restart: unless-stopped
-```
+![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8?logo=go)
+![React](https://img.shields.io/badge/React-18+-61DAFB?logo=react&logoColor=000)
+![License](https://img.shields.io/badge/License-MIT-yellow.svg)
+![Build Status](https://img.shields.io/github/actions/workflow/status/yuanweize/RouteLens/release.yml?branch=master)
+![Docker Pulls](https://img.shields.io/docker/pulls/yuanweize/routelens)
 
 ---
 
-<a name="简体中文"></a>
+<a name="english"></a>
 
-## 简体中文
+## 🚀 Hero
 
-**RouteLens** 是一款专业级的网络观测平台，被誉为互联网连接的“X光机”。它能够实时可视化从本地到远程目标的完整链路，帮助您精准定位网络瓶颈——无论是本地运营商、国际骨干网（如 CN2/9929）还是目标机房的问题，都一目了然。
+🛰️ **RouteLens**
 
-### 🚀 核心特性
+**Slogan:** *A Modern, Stealthy, All-in-One Network Observability Platform.*
 
-*   🛰️ **交互式 MTR 可视化**: 基于 ECharts 的 3D 世界地图渲染，实时展示多跳路径。支持路径过滤，拒绝视觉干扰。
-*   ⚡ **全能探测引擎**:
-    *   **ICMP/MTR**: 经典的延迟与丢包率追踪。
-    *   **SSH 隐蔽测速**: 通过 SSH 侧信道进行带宽测试，有效规避运营商流量整形。
-    *   **HTTP 下载**: 安全、免客户端的带宽验证方案。
-    *   **Iperf3 客户端**: 专业级点对点性能基准测试。
-*   📉 **长期趋势分析**: 结构化存储历史数据，直观展示延迟、抖动及带宽的长期趋势图表。
-*   🛡️ **现代化安全加固**: 内置数据库鉴权，配合丝滑的 Web 前端初始化向导。
-*   📦 **单文件交付**: 原生内置系统服务安装逻辑 (`./routelens service install`)。
+**口号：** 现代化、隐身、全栈式的网络链路观测平台。
 
-### 🛠️ 安装指南
+> Screenshot placeholder / 截图占位：
+> - [ ] Dashboard Overview
+> - [ ] World Map Trace View
 
-#### 1. 快速开始 (二进制)
-下载最新的 [Release](https://github.com/yuanweize/RouteLens/releases)，执行：
+---
+
+## Introduction / 简介
+
+**EN:** RouteLens helps you pinpoint where your network is slow—ISP bottlenecks, international backbones, or destination datacenters—by tracing the entire path and measuring latency, loss, and throughput.
+
+**中文：** RouteLens 通过全链路追踪与测速，帮助你精确定位网络问题是在本地运营商、国际出口还是目标机房。
+
+**EN:** It is **All-in-One** (Go + React in a single binary) and features **Stealth Mode** for non-invasive bandwidth testing.
+
+**中文：** 项目实现 **All-in-One**（Go + React 单文件交付），并具备 **Stealth Mode**（无 Agent 旁路测速）。
+
+---
+
+## ✨ Key Features / 功能亮点
+
+| Feature | Description |
+| --- | --- |
+| 🌍 Visual Traceroute | Real-time world map paths (ECharts + GeoIP) with loss hotspot detection. / 实时地图连线，精准定位丢包节点。 |
+| 🚀 Multi-Mode Probing | ICMP, HTTP (Download), SSH (Tunnel), Iperf3. / 四种探测模式全覆盖。 |
+| 🛡️ Stealth & Safe | Passive probing or SSH tunnel tests to avoid throttling. / 不触发风控的隐蔽测速。 |
+| 📦 Zero Dependency | Single binary + built-in Systemd install. / 单二进制交付，内置系统服务安装。 |
+| 🔐 Secure Access | Setup wizard + JWT protection. / 初始化向导 + JWT 鉴权。 |
+
+---
+
+## 🛠️ Architecture / 架构逻辑图
+
+```mermaid
+flowchart LR
+  A[Probe Engine (Go)] --> B[Channel]
+  B --> C[(SQLite)]
+  C --> D[API Server (Gin)]
+  D --> E[Frontend (React)]
+```
+
+**中文说明：** 探测引擎产生的链路数据通过通道写入 SQLite，API 层提供查询与触发接口，前端实时渲染图表与地图。
+
+---
+
+## 🚀 Quick Start / 快速开始
+
+### Installation (Linux/macOS)
+
 ```bash
-chmod +x routelens
-sudo ./routelens service install --port 8080
-```
-访问 `http://localhost:8080` 即可进入**初始化向导**。
+# Download
+wget https://github.com/yuanweize/RouteLens/releases/latest/download/routelens_linux
+chmod +x routelens_linux
 
-#### 2. Docker Compose 部署
-```yaml
-services:
-  routelens:
-    image: yuanweize/routelens:latest
-    container_name: routelens
-    cap_add:
-      - NET_RAW
-    ports:
-      - "8080:8080"
-    volumes:
-      - ./data:/root/data
-    restart: unless-stopped
+# Install as Service
+./routelens_linux service install --port 8080
 ```
 
-## ⚙️ Configuration / 配置
+**First Run:** open `http://localhost:8080` → `/setup` → set admin password.
 
-| 环境变量 / Env | 描述 / Description | 默认值 / Default |
-| :--- | :--- | :--- |
-| `RS_PORT` | HTTP 服务端口 | `8080` |
-| `RS_DB_PATH` | SQLite 数据库路径 | `./routelens.db` |
-| `RS_JWT_SECRET` | JWT 签名密钥 | *(随机生成)* |
+**首次运行：** 打开浏览器访问 `http://localhost:8080` → `/setup` → 设置管理员密码。
 
-## License
+---
+
+## 📂 Project Structure / 项目结构
+
+```
+.
+├── cmd/            # Entrypoints (server, tools)
+├── internal/       # Core services (API, monitor, auth)
+├── pkg/            # Shared libs (prober, storage, geoip)
+└── web/            # React frontend (Vite + Arco + ECharts)
+```
+
+**中文说明：** cmd 为入口，internal 为核心服务，pkg 为通用库，web 为前端资源。
+
+---
+
+## ⚙️ Configuration / 配置手册
+
+| Env | Description | Default |
+| --- | --- | --- |
+| RS_PORT | HTTP port (alias). / HTTP 服务端口（别名） | 8080 |
+| RS_HTTP_PORT | HTTP port. / HTTP 服务端口 | :8080 |
+| RS_DB_PATH | SQLite database path. / SQLite 数据库路径 | ./data/routelens.db |
+| RS_JWT_SECRET | JWT signing secret. / JWT 签名密钥 | auto-generated |
+| RS_GEOIP_PATH | GeoIP directory (optional). / GeoIP 数据库目录（可选） | empty |
+| RS_GEOIP_CITY_DB | GeoIP City DB path. / 城市库路径 | empty |
+| RS_GEOIP_ISP_DB | GeoIP ISP DB path. / ISP 库路径 | empty |
+
+---
+
+## 📜 License / 许可证
+
 MIT

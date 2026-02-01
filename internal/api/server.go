@@ -51,6 +51,23 @@ func (s *Server) setupRoutes() {
 		c.Next()
 	})
 
+	// Setup enforcement: redirect all non-static requests to /setup until admin exists
+	s.router.Use(func(c *gin.Context) {
+		if s.db.HasAnyUser() {
+			c.Next()
+			return
+		}
+
+		path := c.Request.URL.Path
+		if strings.HasPrefix(path, "/assets") || path == "/favicon.ico" || path == "/setup" || path == "/api/v1/setup" || path == "/api/v1/need-setup" {
+			c.Next()
+			return
+		}
+
+		c.Redirect(http.StatusTemporaryRedirect, "/setup")
+		c.Abort()
+	})
+
 	// Static Assets (Phase 8)
 	if s.distFS != nil {
 		dist, _ := fs.Sub(s.distFS, "dist")
@@ -91,6 +108,7 @@ func (s *Server) setupRoutes() {
 	{
 		api.GET("/status", s.handleStatus)
 		api.GET("/history", s.handleHistory)
+		api.GET("/trace", s.handleTrace)
 		api.POST("/probe", s.handleProbe)
 		api.POST("/user/password", s.handleUpdatePassword)
 
@@ -194,26 +212,98 @@ func (s *Server) handleUpdatePassword(c *gin.Context) {
 }
 
 func (s *Server) handleStatus(c *gin.Context) {
-	// TODO: Get real real-time status from Monitor Service cache
-	// For now, return a mock
-	c.JSON(http.StatusOK, gin.H{
-		"targets": []gin.H{
-			{
-				"ip":           "8.8.8.8",
-				"latency":      15.5,
-				"loss":         0,
-				"last_updated": time.Now(),
-			},
-		},
-	})
+	targets, err := s.db.GetTargets(false)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	status := make([]gin.H, 0, len(targets))
+	for _, t := range targets {
+		rec, recErr := s.db.GetLatestRecord(t.Address)
+		if recErr != nil {
+			status = append(status, gin.H{
+				"target":     t,
+				"latency":    0,
+				"loss":       0,
+				"speed_down": 0,
+				"speed_up":   0,
+				"updated_at": nil,
+			})
+			continue
+		}
+		status = append(status, gin.H{
+			"target":     t,
+			"latency":    rec.LatencyMs,
+			"loss":       rec.PacketLoss,
+			"speed_down": rec.SpeedDown,
+			"speed_up":   rec.SpeedUp,
+			"updated_at": rec.CreatedAt,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"targets": status})
 }
 
 func (s *Server) handleHistory(c *gin.Context) {
-	s.handleStatus(c) // Use same mock for now
+	target := c.Query("target")
+	if target == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "target is required"})
+		return
+	}
+
+	startStr := c.Query("start")
+	endStr := c.Query("end")
+
+	end := time.Now()
+	start := end.Add(-6 * time.Hour)
+	if startStr != "" {
+		if parsed, err := time.Parse(time.RFC3339, startStr); err == nil {
+			start = parsed
+		}
+	}
+	if endStr != "" {
+		if parsed, err := time.Parse(time.RFC3339, endStr); err == nil {
+			end = parsed
+		}
+	}
+
+	records, err := s.db.GetHistory(target, start, end)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, records)
 }
 
 func (s *Server) handleProbe(c *gin.Context) {
-	c.JSON(http.StatusAccepted, gin.H{"message": "Probe triggered"})
+	var req struct {
+		Target string `json:"target"`
+	}
+	_ = c.ShouldBindJSON(&req)
+	if req.Target == "" {
+		req.Target = c.Query("target")
+	}
+
+	s.monitor.TriggerProbe(req.Target)
+	c.JSON(http.StatusAccepted, gin.H{"message": "Probe triggered", "target": req.Target})
+}
+
+func (s *Server) handleTrace(c *gin.Context) {
+	target := c.Query("target")
+	if target == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "target is required"})
+		return
+	}
+
+	rec, err := s.db.GetLatestTrace(target)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "trace not found"})
+		return
+	}
+
+	c.Data(http.StatusOK, "application/json", rec.TraceJson)
 }
 
 func (s *Server) handleGetTargets(c *gin.Context) {
@@ -229,6 +319,16 @@ func (s *Server) handleSaveTarget(c *gin.Context) {
 	var t storage.Target
 	if err := c.ShouldBindJSON(&t); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if t.ProbeType == "" {
+		t.ProbeType = storage.ProbeModeICMP
+	}
+	switch t.ProbeType {
+	case storage.ProbeModeICMP, storage.ProbeModeHTTP, storage.ProbeModeSSH, storage.ProbeModeIPERF:
+		// ok
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid probe_type"})
 		return
 	}
 	if err := s.db.SaveTarget(&t); err != nil {

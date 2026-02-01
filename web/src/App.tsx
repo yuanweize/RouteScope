@@ -4,6 +4,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Settings from './pages/Settings';
 import Setup from './pages/Setup';
+import Targets from './pages/Targets';
 import AppLayout from './components/Layout';
 import ErrorBoundary from './components/ErrorBoundary';
 import { checkNeedSetup } from './api';
@@ -37,6 +38,7 @@ function AppContent() {
           <AppLayout>
             <Routes>
               <Route path="dashboard" element={<Dashboard />} />
+              <Route path="targets" element={<Targets />} />
               <Route path="settings" element={<Settings />} />
               <Route path="" element={<Navigate to="/dashboard" replace />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />

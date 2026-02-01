@@ -1,57 +1,59 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Grid, Statistic, Button, Typography, Select, Space } from '@arco-design/web-react';
+import { Card, Grid, Statistic, Button, Typography, Space } from '@arco-design/web-react';
 import { IconThunderbolt } from '@arco-design/web-react/icon';
 import MapChart from '../../components/MapChart';
 import MetricsChart from '../../components/MetricsChart';
-import { triggerProbe, getTargets } from '../../api';
-import type { Target } from '../../api';
+import { triggerProbe, getHistory, getLatestTrace } from '../../api';
+import { useAppContext } from '../../utils/appContext';
 
 const { Row, Col } = Grid;
 
 const Dashboard: React.FC = () => {
-    const [targets, setTargets] = useState<Target[]>([]);
-    const [selectedTarget, setSelectedTarget] = useState<string>('');
     const [history, setHistory] = useState<any[]>([]);
-
-    const fetchInitialData = async () => {
-        try {
-            const data = await getTargets() as any;
-            setTargets(data);
-            if (data.length > 0 && !selectedTarget) {
-                setSelectedTarget(data[0].Address);
-            }
-        } catch (e) { console.error(e); }
-    };
+    const [trace, setTrace] = useState<any>(null);
+    const { selectedTarget, targets, isDark } = useAppContext();
+    const selectedMeta = targets.find(t => t.address === selectedTarget);
+    const isIcmpOnly = selectedMeta?.probe_type === 'MODE_ICMP';
 
     const fetchHistory = async () => {
         if (!selectedTarget) return;
         try {
-            // In real app, we use getHistory(selectedTarget)
-            const mockHistory = Array.from({ length: 20 }).fill(0).map((_, i) => ({
-                CreatedAt: new Date(Date.now() - (20 - i) * 60000).toISOString(),
-                LatencyMs: 20 + Math.random() * 10,
-                PacketLoss: Math.random() > 0.8 ? 5 : 0,
-                SpeedDown: 50 + Math.random() * 50
-            }));
-            setHistory(mockHistory);
+            const data = await getHistory({ target: selectedTarget });
+            setHistory(data as any[]);
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    const fetchTrace = async () => {
+        if (!selectedTarget) return;
+        try {
+            const data = await getLatestTrace(selectedTarget);
+            setTrace(data);
         } catch (e) {
             console.error(e);
         }
     };
 
     useEffect(() => {
-        fetchInitialData();
+        fetchHistory();
+        fetchTrace();
     }, []);
 
     useEffect(() => {
         fetchHistory();
-        const timer = setInterval(fetchHistory, 5000);
+        fetchTrace();
+        const timer = setInterval(() => {
+            fetchHistory();
+            fetchTrace();
+        }, 10000);
         return () => clearInterval(timer);
     }, [selectedTarget]);
 
     const handleProbe = async () => {
-        await triggerProbe();
+        await triggerProbe({ target: selectedTarget } as any);
         fetchHistory();
+        fetchTrace();
     };
 
     return (
@@ -59,16 +61,9 @@ const Dashboard: React.FC = () => {
             <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Space size="large">
                     <Typography.Title heading={4} style={{ margin: 0 }}>Network Observer</Typography.Title>
-                    <Select
-                        placeholder='Select Target'
-                        style={{ width: 240 }}
-                        value={selectedTarget}
-                        onChange={setSelectedTarget}
-                    >
-                        {targets.map(t => <Select.Option key={t.Address} value={t.Address}>{t.Name} ({t.Address})</Select.Option>)}
-                    </Select>
+                    <Typography.Text type="secondary">Target: {selectedTarget || 'N/A'}</Typography.Text>
                 </Space>
-                <Button type="primary" icon={<IconThunderbolt />} onClick={handleProbe}>
+                <Button type="primary" icon={<IconThunderbolt />} onClick={handleProbe} disabled={!selectedTarget}>
                     Quick Probe
                 </Button>
             </div>
@@ -78,7 +73,7 @@ const Dashboard: React.FC = () => {
                     <Card bordered={false} hoverable>
                         <Statistic
                             title="Avg Latency"
-                            value={history.length > 0 ? (history.reduce((a, b) => a + b.LatencyMs, 0) / history.length) : 0}
+                            value={history.length > 0 ? (history.reduce((a, b) => a + (b.latency_ms || b.LatencyMs || 0), 0) / history.length) : 0}
                             precision={1}
                             suffix="ms"
                             groupSeparator
@@ -89,7 +84,7 @@ const Dashboard: React.FC = () => {
                     <Card bordered={false} hoverable>
                         <Statistic
                             title="Packet Loss"
-                            value={history.length > 0 ? (history.reduce((a, b) => a + b.PacketLoss, 0) / history.length) : 0}
+                            value={history.length > 0 ? (history.reduce((a, b) => a + (b.packet_loss || b.PacketLoss || 0), 0) / history.length) : 0}
                             precision={2}
                             suffix="%"
                             style={{ color: 'var(--color-danger-text)' }}
@@ -98,12 +93,19 @@ const Dashboard: React.FC = () => {
                 </Col>
                 <Col span={6}>
                     <Card bordered={false} hoverable>
-                        <Statistic
-                            title="Downlink"
-                            value={history.length > 0 ? history[history.length - 1].SpeedDown : 0}
-                            precision={1}
-                            suffix="Mbps"
-                        />
+                        {isIcmpOnly ? (
+                            <Statistic
+                                title="Downlink"
+                                value="N/A"
+                            />
+                        ) : (
+                            <Statistic
+                                title="Downlink"
+                                value={history.length > 0 ? (history[history.length - 1].speed_down || history[history.length - 1].SpeedDown || 0) : 0}
+                                precision={1}
+                                suffix="Mbps"
+                            />
+                        )}
                     </Card>
                 </Col>
                 <Col span={6}>
@@ -116,12 +118,12 @@ const Dashboard: React.FC = () => {
             <Row gutter={24}>
                 <Col span={16}>
                     <Card title="Traffic Path Visualization" bordered={false} extra={<Typography.Text type="secondary">Real-time Path</Typography.Text>}>
-                        <MapChart target={selectedTarget} />
+                        <MapChart target={selectedTarget} trace={trace} isDark={isDark} />
                     </Card>
                 </Col>
                 <Col span={8}>
                     <Card title="Connectivity Trends" bordered={false}>
-                        <MetricsChart history={history} />
+                        <MetricsChart history={history} isDark={isDark} />
                     </Card>
                 </Col>
             </Row>

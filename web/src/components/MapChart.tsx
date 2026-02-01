@@ -5,9 +5,11 @@ import axios from 'axios';
 
 interface MapChartProps {
     target?: string;
+    trace?: any;
+    isDark?: boolean;
 }
 
-const MapChart: React.FC<MapChartProps> = ({ target }) => {
+const MapChart: React.FC<MapChartProps> = ({ target, trace, isDark }) => {
     const [isLoaded, setIsLoaded] = useState(false);
 
     useEffect(() => {
@@ -21,22 +23,22 @@ const MapChart: React.FC<MapChartProps> = ({ target }) => {
         fetchMap();
     }, []);
 
-    // Simulated path data for demonstration
-    const allLines = [
-        {
-            name: 'nas.yuanweize.win',
-            coords: [[116.46, 39.92], [114.17, 22.28], [103.85, 1.29], [2.35, 48.85]], // Beijing -> HK -> SG -> Paris
-            lineStyle: { color: '#165dff' }
-        },
-        {
-            name: 'nue.eurun.top',
-            coords: [[116.46, 39.92], [-122.41, 37.77], [-74.00, 40.71]], // Beijing -> SF -> NY
-            lineStyle: { color: '#00b42a' }
-        }
-    ];
+    const traceData = typeof trace === 'string' ? (() => { try { return JSON.parse(trace); } catch { return null; } })() : trace;
+    const hops = traceData?.hops || [];
+    const points = hops
+        .filter((h: any) => Number.isFinite(h.lon) && Number.isFinite(h.lat) && (h.lon !== 0 || h.lat !== 0))
+        .map((h: any) => ({
+            name: h.ip,
+            value: [h.lon, h.lat],
+            latency: h.latency_ms,
+        }));
 
-    // Filter based on selected target address
-    const filteredLines = target ? allLines.filter(l => l.name === target) : allLines;
+    const lineCoords = points.map((p: any) => p.value);
+    const lines = lineCoords.length >= 2 ? [{
+        name: target || 'trace',
+        coords: lineCoords,
+        lineStyle: { color: '#165dff' }
+    }] : [];
 
     const option = {
         backgroundColor: 'transparent',
@@ -44,7 +46,8 @@ const MapChart: React.FC<MapChartProps> = ({ target }) => {
             trigger: 'item',
             formatter: (params: any) => {
                 if (params.seriesType === 'effectScatter') {
-                    return `Node: ${params.name}<br/>Latency: ${Math.floor(Math.random() * 50)}ms`;
+                    const latency = params.data?.latency ?? 0;
+                    return `Node: ${params.name}<br/>Latency: ${latency.toFixed(1)}ms`;
                 }
                 if (params.data && params.data.name) {
                     return `Target: ${params.data.name}`;
@@ -57,11 +60,11 @@ const MapChart: React.FC<MapChartProps> = ({ target }) => {
             roam: true,
             silent: false,
             itemStyle: {
-                areaColor: 'var(--color-fill-2)',
-                borderColor: 'var(--color-border-2)'
+                areaColor: isDark ? '#1f2329' : '#e8f3ff',
+                borderColor: isDark ? '#2f3338' : '#bcd7ff'
             },
             emphasis: {
-                itemStyle: { areaColor: 'var(--color-fill-3)' }
+                itemStyle: { areaColor: isDark ? '#2a2f36' : '#cfe4ff' }
             }
         },
         series: [
@@ -81,7 +84,7 @@ const MapChart: React.FC<MapChartProps> = ({ target }) => {
                     width: 0,
                     curveness: 0.2
                 },
-                data: filteredLines
+                data: lines
             },
             {
                 type: 'lines',
@@ -95,7 +98,7 @@ const MapChart: React.FC<MapChartProps> = ({ target }) => {
                     opacity: 0.6,
                     curveness: 0.2
                 },
-                data: filteredLines
+                data: lines
             },
             {
                 type: 'effectScatter',
@@ -105,17 +108,21 @@ const MapChart: React.FC<MapChartProps> = ({ target }) => {
                 label: { show: true, position: 'right', formatter: '{b}' },
                 symbolSize: 10,
                 itemStyle: { color: '#165dff' },
-                data: [
-                    { name: 'Source', value: [116.46, 39.92] },
-                    { name: 'Target', value: filteredLines.length > 0 ? filteredLines[0].coords[filteredLines[0].coords.length - 1] : [0, 0] }
-                ]
+                data: points
             }
         ]
     };
 
     return (
-        <div style={{ height: '600px', width: '100%' }}>
-            {isLoaded ? <ReactECharts option={option} style={{ height: '100%', width: '100%' }} /> : 'Loading Map...'}
+        <div style={{ height: '60vh', minHeight: 600, width: '100%' }}>
+            {isLoaded ? (
+                <ReactECharts
+                    option={option}
+                    style={{ height: '100%', width: '100%' }}
+                    notMerge={true}
+                    theme={isDark ? 'dark' : 'light'}
+                />
+            ) : 'Loading Map...'}
         </div>
     );
 };
