@@ -3,8 +3,24 @@ name: Go Build & Test
 on:
   push:
     branches: [ "master" ]
+    paths:
+      - "cmd/**"
+      - "internal/**"
+      - "pkg/**"
+      - "web/**"
+      - "go.mod"
+      - "go.sum"
+      - ".github/workflows/go.yml"
   pull_request:
     branches: [ "master" ]
+    paths:
+      - "cmd/**"
+      - "internal/**"
+      - "pkg/**"
+      - "web/**"
+      - "go.mod"
+      - "go.sum"
+      - ".github/workflows/go.yml"
 
 jobs:
   build:
