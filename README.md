@@ -173,7 +173,40 @@ flowchart LR
 
 ---
 
-## 🔐 Security
+## � Development
+
+### Build from Source
+
+```bash
+# Clone repository
+git clone https://github.com/yuanweize/RouteLens.git
+cd RouteLens
+
+# Build frontend
+cd web && npm ci && npm run build && cd ..
+
+# Build binary (uses Makefile)
+make build          # Build for current platform
+make build-linux    # Build for Linux amd64
+make build-all      # Build for all platforms
+```
+
+### Version Management
+
+Version is managed from a single source of truth: `.github/.release-please-manifest.json`
+
+- **CI builds**: GoReleaser automatically injects version via ldflags
+- **Local builds**: `make build` extracts version from manifest
+- **Docker builds**: Dockerfile copies manifest for embedding
+
+```bash
+# Check current version
+make version
+```
+
+---
+
+## �🔐 Security
 
 RouteLens v2.0.0 includes comprehensive security hardening:
 

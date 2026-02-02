@@ -151,6 +151,39 @@ RouteLens v2.0.0 包含全面安全加固：
 
 ---
 
-## 📝 许可证
+## � 开发构建
+
+### 从源码构建
+
+```bash
+# 克隆仓库
+git clone https://github.com/yuanweize/RouteLens.git
+cd RouteLens
+
+# 构建前端
+cd web && npm ci && npm run build && cd ..
+
+# 构建二进制（使用 Makefile）
+make build          # 构建当前平台
+make build-linux    # 构建 Linux amd64
+make build-all      # 构建所有平台
+```
+
+### 版本管理
+
+版本统一由单一来源管理：`.github/.release-please-manifest.json`
+
+- **CI 构建**：GoReleaser 自动通过 ldflags 注入版本
+- **本地构建**：`make build` 从 manifest 提取版本
+- **Docker 构建**：Dockerfile 复制 manifest 用于嵌入
+
+```bash
+# 查看当前版本
+make version
+```
+
+---
+
+## �📝 许可证
 
 [MIT License](LICENSE) — 可自由用于个人和商业用途。
