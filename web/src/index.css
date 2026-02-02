@@ -8,13 +8,37 @@ html, body, #root {
 
 body {
   margin: 0;
-  background-color: #17171a;
-  color: #ffffff;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  transition: background-color 0.3s, color 0.3s;
 }
 
-/* Prevent white flash before theme loads */
-html {
+/* Dark theme styles */
+html[data-theme='dark'] body {
+  background-color: #17171a;
+  color: #ffffff;
+}
+
+html[data-theme='dark'] {
+  background-color: #17171a;
+}
+
+/* Light theme styles */
+html[data-theme='light'] body {
+  background-color: #f5f5f5;
+  color: #000000;
+}
+
+html[data-theme='light'] {
+  background-color: #f5f5f5;
+}
+
+/* Default to dark to prevent flash (will be overridden by JS) */
+html:not([data-theme]) body {
+  background-color: #17171a;
+  color: #ffffff;
+}
+
+html:not([data-theme]) {
   background-color: #17171a;
 }
 
@@ -48,45 +72,18 @@ html {
 /* Hop table timeout row styling */
 .hop-timeout-row {
   opacity: 0.4;
+}
+
+html[data-theme='dark'] .hop-timeout-row {
   background-color: rgba(255, 255, 255, 0.02);
+}
+
+html[data-theme='light'] .hop-timeout-row {
+  background-color: rgba(0, 0, 0, 0.02);
 }
 
 .hop-timeout-row:hover {
   opacity: 0.6;
-}
-
-/* Ant Design dark mode overrides */
-.ant-card {
-  background-color: #1f1f1f !important;
-}
-
-.ant-collapse {
-  background-color: #1f1f1f !important;
-}
-
-.ant-collapse-content {
-  background-color: #141414 !important;
-}
-
-.ant-table {
-  background-color: transparent !important;
-}
-
-.ant-table-thead > tr > th {
-  background-color: #1f1f1f !important;
-}
-
-.ant-table-tbody > tr > td {
-  border-bottom-color: #303030 !important;
-}
-
-.ant-modal-content,
-.ant-drawer-content {
-  background-color: #1f1f1f !important;
-}
-
-.ant-select-dropdown {
-  background-color: #1f1f1f !important;
 }
 
 /* Pulse animation for countdown */

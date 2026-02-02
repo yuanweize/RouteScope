@@ -29,6 +29,11 @@ const App: React.FC = () => {
     return () => media.removeEventListener('change', listener);
   }, []);
 
+  // Sync theme to HTML attribute for CSS selectors
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+  }, [isDark]);
+
   useEffect(() => {
     const run = async () => {
       try {
