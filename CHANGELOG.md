@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.2.2](https://github.com/yuanweize/RouteLens/compare/v2.2.1...v2.2.2) (2026-02-02)
+
+
+### Bug Fixes
+
+* add version.json copy step for CI builds ([b2c6c34](https://github.com/yuanweize/RouteLens/commit/b2c6c348cdc83e8aac0c730bd34f5d27fe83ddab))
+* unignore .release-please-manifest.json in .dockerignore ([a05ac2d](https://github.com/yuanweize/RouteLens/commit/a05ac2d072ba81eb3e0224e6e6e1d997d27a869f))
+
 ## [2.1.0](https://github.com/yuanweize/RouteLens/compare/v2.0.0...v2.1.0) (2025-01)
 
 
