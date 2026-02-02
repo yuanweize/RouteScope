@@ -6,6 +6,9 @@
 ### ⚠ BREAKING CHANGES
 
 * v2.0.0 - Security hardening and code quality improvements
+* Password validation now requires 6-72 characters
+* Username validation now requires 3-32 alphanumeric characters
+
 
 ### Features
 
@@ -22,6 +25,18 @@
 * display IPv4 + IPv6 for GeoIP ip_version 6 ([fc14ebd](https://github.com/yuanweize/RouteLens/commit/fc14ebde770f72aab9472b556a65e25659b8e331))
 * **targets:** parse probe_config when editing to populate SSH fields ([e657096](https://github.com/yuanweize/RouteLens/commit/e6570965bd98fe04b29967a439a0846aa2a1f637))
 * **ui:** show error messages on login page for 401/429 errors ([5461e72](https://github.com/yuanweize/RouteLens/commit/5461e7207610a31a797d1ff41a8536289fc2714c))
+
+
+### Security
+
+* **auth:** Proper bcrypt error handling with logging
+* **auth:** Password validation (6-72 character limit)
+* **auth:** Username validation (3-32 alphanumeric characters)
+* **api:** Target validation in handleProbe using regex pattern
+* **api:** Target validation in traceroute before execution
+* **api:** Generic error messages (internal errors hidden from users with server-side logging)
+* **monitor:** Thread-safe operations with RWMutex on targets slice
+
 
 ## [1.3.2](https://github.com/yuanweize/RouteLens/compare/v1.3.1...v1.3.2) (2026-02-02)
 

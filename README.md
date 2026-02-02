@@ -68,8 +68,8 @@ Download from [Releases](https://github.com/yuanweize/RouteLens/releases/latest)
 
 ```bash
 # Linux
-curl -LO https://github.com/yuanweize/RouteLens/releases/latest/download/routelens_1.3.1_linux_amd64.tar.gz
-tar xzf routelens_1.3.1_linux_amd64.tar.gz
+curl -LO https://github.com/yuanweize/RouteLens/releases/latest/download/routelens_2.0.0_linux_amd64.tar.gz
+tar xzf routelens_2.0.0_linux_amd64.tar.gz
 chmod +x routelens
 
 # Run directly
@@ -173,11 +173,15 @@ flowchart LR
 
 ## 🔐 Security
 
-RouteLens v1.3.1 includes security hardening:
+RouteLens v2.0.0 includes comprehensive security hardening:
 
 - **JWT Authentication** with cryptographically random secrets
 - **Login Rate Limiting** (5 attempts per IP per minute)
 - **Input Sanitization** on all probe targets (prevents command injection)
+- **Password Validation** (6-72 character limit, bcrypt hashing)
+- **Username Validation** (3-32 alphanumeric characters)
+- **Generic Error Messages** (internal errors hidden from users)
+- **Thread-Safe Operations** (RWMutex protection on shared data)
 
 ---
 

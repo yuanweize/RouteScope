@@ -68,8 +68,8 @@ docker compose up -d
 
 ```bash
 # Linux
-curl -LO https://github.com/yuanweize/RouteLens/releases/latest/download/routelens_1.3.1_linux_amd64.tar.gz
-tar xzf routelens_1.3.1_linux_amd64.tar.gz
+curl -LO https://github.com/yuanweize/RouteLens/releases/latest/download/routelens_2.0.0_linux_amd64.tar.gz
+tar xzf routelens_2.0.0_linux_amd64.tar.gz
 chmod +x routelens
 
 # 直接运行
@@ -119,11 +119,15 @@ RouteLens 支持从 Web UI 一键升级：
 
 ## 🔐 安全特性
 
-RouteLens v1.3.1 包含安全加固：
+RouteLens v2.0.0 包含全面安全加固：
 
 - **JWT 认证**：密码学安全的随机密钥
 - **登录速率限制**：每 IP 每分钟 5 次
 - **输入过滤**：所有探测目标经过验证（防止命令注入）
+- **密码验证**：6-72 字符限制，bcrypt 哈希
+- **用户名验证**：3-32 字母数字字符
+- **通用错误消息**：内部错误对用户隐藏
+- **线程安全操作**：RWMutex 保护共享数据
 
 ---
 
