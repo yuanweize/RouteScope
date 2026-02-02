@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.2](https://github.com/yuanweize/RouteLens/compare/v1.3.1...v1.3.2) (2026-02-02)
+
+
+### Bug Fixes
+
+* **api:** password update UNIQUE constraint error ([ff2a9d6](https://github.com/yuanweize/RouteLens/commit/ff2a9d6e1cd02b0e02f2fc443c4113ac225451a9))
+* **core:** audit fixes for hardcoded values and GORM misuse ([c695ce4](https://github.com/yuanweize/RouteLens/commit/c695ce46c869f57661dccae1fcf7bf1af2bd332a))
+
 ## [1.3.1](https://github.com/yuanweize/RouteLens/compare/v1.3.0...v1.3.1) (2026-02-02)
 
 
