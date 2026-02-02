@@ -66,13 +66,32 @@ const Targets: React.FC = () => {
 
   const onEdit = (record: Target) => {
     setEditing(record);
+    
+    // Parse probe_config JSON to populate individual fields
+    let parsedConfig: Record<string, unknown> = {};
+    if (record.probe_config) {
+      try {
+        parsedConfig = JSON.parse(record.probe_config);
+      } catch {
+        // ignore parse error
+      }
+    }
+    
     form.setFieldsValue({
       name: record.name,
       address: record.address,
       desc: record.desc,
       enabled: record.enabled,
       probe_type: record.probe_type,
-      probe_config: record.probe_config,
+      // HTTP fields
+      http_url: parsedConfig.url || '',
+      // SSH fields
+      ssh_user: parsedConfig.user || 'root',
+      ssh_port: parsedConfig.port || 22,
+      ssh_key_path: parsedConfig.key_path || '',
+      ssh_key_text: parsedConfig.key_text || '',
+      // iPerf fields
+      iperf_port: parsedConfig.port || 5201,
     });
     setOpen(true);
   };
