@@ -246,13 +246,31 @@ func (s *Server) handlePerformUpdate(c *gin.Context) {
 		return
 	}
 
-	logging.Info("update", "Downloading version v%s...", latest.Version)
+	// Check if the release has downloadable assets
+	if latest.AssetURL == "" {
+		logging.Error("update", "Release v%s has no downloadable assets yet", latest.Version)
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error":   "Release assets not ready yet. Please try again in a few minutes.",
+			"updated": false,
+		})
+		return
+	}
+
+	logging.Info("update", "Downloading version v%s from %s...", latest.Version, latest.AssetURL)
 
 	// Perform the update
 	err = updater.UpdateTo(latest, exe)
 	if err != nil {
 		logging.Error("update", "Update failed: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Update failed: %v", err)})
+		return
+	}
+
+	// Verify the update was successful by checking file size
+	fi, err := os.Stat(exe)
+	if err != nil || fi.Size() < 1024*1024 { // Binary should be at least 1MB
+		logging.Error("update", "Update verification failed: file may be corrupt (size: %d)", fi.Size())
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Update verification failed: downloaded file may be corrupt"})
 		return
 	}
 
