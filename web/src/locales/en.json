@@ -196,7 +196,14 @@
     "updateGeoIP": "Update GeoIP Database",
     "geoipUpdateSuccess": "GeoIP database updated successfully",
     "geoipUpdateFailed": "Failed to update GeoIP database",
-    "geoipSource": "Database source: GeoLite2-City from MaxMind (via GitHub mirror)"
+    "geoipSource": "Source: MaxMind GeoLite2-City (via GitHub mirror by P3TERX)",
+    "geoipIPVersion": "IP Version",
+    "geoipDatabaseType": "Database Type",
+    "geoipBuildDate": "Build Date",
+    "geoipNodeCount": "Node Count",
+    "geoipBinaryVersion": "Format Version",
+    "geoipDescription2": "Description",
+    "geoipFileUpdated": "File Updated"
   },
   "logs": {
     "title": "System Logs",

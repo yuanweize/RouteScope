@@ -196,7 +196,14 @@
     "updateGeoIP": "更新 GeoIP 数据库",
     "geoipUpdateSuccess": "GeoIP 数据库更新成功",
     "geoipUpdateFailed": "更新 GeoIP 数据库失败",
-    "geoipSource": "数据库来源：MaxMind GeoLite2-City（通过 GitHub 镜像）"
+    "geoipSource": "来源：MaxMind GeoLite2-City（通过 P3TERX 的 GitHub 镜像）",
+    "geoipIPVersion": "IP 版本",
+    "geoipDatabaseType": "数据库类型",
+    "geoipBuildDate": "构建日期",
+    "geoipNodeCount": "节点数量",
+    "geoipBinaryVersion": "格式版本",
+    "geoipDescription2": "描述",
+    "geoipFileUpdated": "文件更新时间"
   },
   "logs": {
     "title": "系统日志",

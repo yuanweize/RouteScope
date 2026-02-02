@@ -130,6 +130,14 @@ export interface GeoIPStatus {
   size_human: string;
   mod_time?: string;
   last_updated?: string;
+  database_type?: string;
+  build_epoch?: number;
+  build_time?: string;
+  ip_version?: number;
+  node_count?: number;
+  record_size?: number;
+  binary_version?: string;
+  description?: string;
 }
 
 export const getGeoIPStatus = () => request.get<GeoIPStatus>('/api/v1/system/geoip/status');

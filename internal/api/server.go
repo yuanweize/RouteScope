@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/oschwald/geoip2-golang"
 	"github.com/yuanweize/RouteLens/internal/auth"
 	"github.com/yuanweize/RouteLens/internal/monitor"
 	"github.com/yuanweize/RouteLens/pkg/logging"
@@ -667,12 +668,20 @@ func (s *Server) handleSaveSettings(c *gin.Context) {
 
 // GeoIP Status Response
 type GeoIPStatus struct {
-	Available   bool   `json:"available"`
-	Path        string `json:"path"`
-	SizeBytes   int64  `json:"size_bytes"`
-	SizeHuman   string `json:"size_human"`
-	ModTime     string `json:"mod_time"`
-	LastUpdated string `json:"last_updated"`
+	Available     bool   `json:"available"`
+	Path          string `json:"path"`
+	SizeBytes     int64  `json:"size_bytes"`
+	SizeHuman     string `json:"size_human"`
+	ModTime       string `json:"mod_time"`
+	LastUpdated   string `json:"last_updated"`
+	DatabaseType  string `json:"database_type"`
+	BuildEpoch    int64  `json:"build_epoch"`
+	BuildTime     string `json:"build_time"`
+	IPVersion     int    `json:"ip_version"`
+	NodeCount     uint   `json:"node_count"`
+	RecordSize    uint   `json:"record_size"`
+	BinaryVersion string `json:"binary_version"`
+	Description   string `json:"description"`
 }
 
 func (s *Server) handleGetGeoIPStatus(c *gin.Context) {
@@ -689,6 +698,22 @@ func (s *Server) handleGetGeoIPStatus(c *gin.Context) {
 		status.SizeHuman = formatBytes(info.Size())
 		status.ModTime = info.ModTime().Format(time.RFC3339)
 		status.LastUpdated = info.ModTime().Format("2006-01-02 15:04:05")
+
+		// Read MMDB metadata
+		if db, err := geoip2.Open(geoipPath); err == nil {
+			defer db.Close()
+			meta := db.Metadata()
+			status.DatabaseType = meta.DatabaseType
+			status.BuildEpoch = int64(meta.BuildEpoch)
+			status.BuildTime = time.Unix(int64(meta.BuildEpoch), 0).Format("2006-01-02")
+			status.IPVersion = int(meta.IPVersion)
+			status.NodeCount = meta.NodeCount
+			status.RecordSize = meta.RecordSize
+			status.BinaryVersion = fmt.Sprintf("%d.%d", meta.BinaryFormatMajorVersion, meta.BinaryFormatMinorVersion)
+			if desc, ok := meta.Description["en"]; ok {
+				status.Description = desc
+			}
+		}
 	}
 
 	c.JSON(http.StatusOK, status)

@@ -304,7 +304,7 @@ const Settings: React.FC = () => {
       key: '2',
       label: <span><GlobalOutlined style={{ marginRight: 6 }} />{t('settings.tabs.geoip') || 'GeoIP'}</span>,
       children: (
-        <Card title={t('settings.geoipDatabase') || 'GeoIP Database'} style={{ maxWidth: 600 }}>
+        <Card title={t('settings.geoipDatabase') || 'GeoIP Database'} style={{ maxWidth: 700 }}>
           <Alert
             message={t('settings.geoipInfo') || 'About GeoIP Database'}
             description={t('settings.geoipDescription') || 'The GeoIP database is used to determine the geographic location of IP addresses. Update it regularly for accurate results.'}
@@ -313,28 +313,61 @@ const Settings: React.FC = () => {
             style={{ marginBottom: 24 }}
           />
           {geoipStatus && (
-            <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-              <Col span={12}>
-                <Statistic 
-                  title={t('settings.geoipStatus') || 'Status'} 
-                  value={geoipStatus.available ? (t('settings.geoipAvailable') || 'Available') : (t('settings.geoipNotAvailable') || 'Not Available')} 
-                  valueStyle={{ color: geoipStatus.available ? '#52c41a' : '#ff4d4f' }}
-                />
-              </Col>
-              <Col span={12}>
-                <Statistic 
-                  title={t('settings.geoipSize') || 'Database Size'} 
-                  value={geoipStatus.available ? geoipStatus.size_human : '-'} 
-                />
-              </Col>
-              {geoipStatus.last_updated && (
-                <Col span={24}>
-                  <Typography.Text type="secondary">
-                    {t('settings.geoipLastUpdated') || 'Last Updated'}: {new Date(geoipStatus.last_updated).toLocaleString()}
-                  </Typography.Text>
+            <>
+              <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+                <Col span={8}>
+                  <Statistic 
+                    title={t('settings.geoipStatus') || 'Status'} 
+                    value={geoipStatus.available ? (t('settings.geoipAvailable') || 'Available') : (t('settings.geoipNotAvailable') || 'Not Available')} 
+                    valueStyle={{ color: geoipStatus.available ? '#52c41a' : '#ff4d4f' }}
+                  />
                 </Col>
+                <Col span={8}>
+                  <Statistic 
+                    title={t('settings.geoipSize') || 'Database Size'} 
+                    value={geoipStatus.available ? geoipStatus.size_human : '-'} 
+                  />
+                </Col>
+                <Col span={8}>
+                  <Statistic 
+                    title={t('settings.geoipIPVersion') || 'IP Version'} 
+                    value={geoipStatus.ip_version ? `IPv${geoipStatus.ip_version}` : '-'} 
+                  />
+                </Col>
+              </Row>
+              {geoipStatus.available && (
+                <Card size="small" style={{ marginBottom: 16, background: 'var(--ant-color-bg-container-secondary, #fafafa)' }}>
+                  <Row gutter={[16, 8]}>
+                    <Col span={12}>
+                      <Typography.Text type="secondary">{t('settings.geoipDatabaseType') || 'Database Type'}:</Typography.Text>
+                      <Typography.Text strong style={{ marginLeft: 8 }}>{geoipStatus.database_type || '-'}</Typography.Text>
+                    </Col>
+                    <Col span={12}>
+                      <Typography.Text type="secondary">{t('settings.geoipBuildDate') || 'Build Date'}:</Typography.Text>
+                      <Typography.Text strong style={{ marginLeft: 8 }}>{geoipStatus.build_time || '-'}</Typography.Text>
+                    </Col>
+                    <Col span={12}>
+                      <Typography.Text type="secondary">{t('settings.geoipNodeCount') || 'Node Count'}:</Typography.Text>
+                      <Typography.Text strong style={{ marginLeft: 8 }}>{geoipStatus.node_count?.toLocaleString() || '-'}</Typography.Text>
+                    </Col>
+                    <Col span={12}>
+                      <Typography.Text type="secondary">{t('settings.geoipBinaryVersion') || 'Format Version'}:</Typography.Text>
+                      <Typography.Text strong style={{ marginLeft: 8 }}>{geoipStatus.binary_version || '-'}</Typography.Text>
+                    </Col>
+                    {geoipStatus.description && (
+                      <Col span={24}>
+                        <Typography.Text type="secondary">{t('settings.geoipDescription2') || 'Description'}:</Typography.Text>
+                        <Typography.Text style={{ marginLeft: 8 }}>{geoipStatus.description}</Typography.Text>
+                      </Col>
+                    )}
+                    <Col span={24}>
+                      <Typography.Text type="secondary">{t('settings.geoipFileUpdated') || 'File Updated'}:</Typography.Text>
+                      <Typography.Text style={{ marginLeft: 8 }}>{geoipStatus.last_updated ? new Date(geoipStatus.last_updated).toLocaleString() : '-'}</Typography.Text>
+                    </Col>
+                  </Row>
+                </Card>
               )}
-            </Row>
+            </>
           )}
           <Space>
             <Button 
@@ -350,7 +383,7 @@ const Settings: React.FC = () => {
             </Button>
           </Space>
           <Typography.Paragraph type="secondary" style={{ marginTop: 16 }}>
-            {t('settings.geoipSource') || 'Database source: GeoLite2-City from MaxMind (via GitHub mirror)'}
+            {t('settings.geoipSource') || 'Source: MaxMind GeoLite2-City (via GitHub mirror by P3TERX)'}
           </Typography.Paragraph>
         </Card>
       ),
