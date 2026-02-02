@@ -129,6 +129,37 @@ var countryCodeToChinese = map[string]string{
 	"CZ": "捷克", "PL": "波兰", "IT": "意大利", "ES": "西班牙",
 }
 
+// China province Chinese to English mapping
+var chinaProvinceToEN = map[string]string{
+	"北京": "Beijing", "天津": "Tianjin", "河北": "Hebei", "山西": "Shanxi",
+	"内蒙古": "Inner Mongolia", "辽宁": "Liaoning", "吉林": "Jilin", "黑龙江": "Heilongjiang",
+	"上海": "Shanghai", "江苏": "Jiangsu", "浙江": "Zhejiang", "安徽": "Anhui",
+	"福建": "Fujian", "江西": "Jiangxi", "山东": "Shandong", "河南": "Henan",
+	"湖北": "Hubei", "湖南": "Hunan", "广东": "Guangdong", "广西": "Guangxi",
+	"海南": "Hainan", "重庆": "Chongqing", "四川": "Sichuan", "贵州": "Guizhou",
+	"云南": "Yunnan", "西藏": "Tibet", "陕西": "Shaanxi", "甘肃": "Gansu",
+	"青海": "Qinghai", "宁夏": "Ningxia", "新疆": "Xinjiang", "香港": "Hong Kong",
+	"澳门": "Macau", "台湾": "Taiwan",
+}
+
+// Convert Chinese province/city name to English (pinyin-based)
+func toEnglishName(zhName string) string {
+	// Try province mapping first
+	if en, ok := chinaProvinceToEN[zhName]; ok {
+		return en
+	}
+	// Remove common suffixes and try again
+	name := strings.TrimSuffix(zhName, "省")
+	name = strings.TrimSuffix(name, "市")
+	name = strings.TrimSuffix(name, "自治区")
+	name = strings.TrimSuffix(name, "特别行政区")
+	if en, ok := chinaProvinceToEN[name]; ok {
+		return en
+	}
+	// For cities, return as-is (pinyin would require external library)
+	return zhName
+}
+
 type Provider struct {
 	cityDB      *maxminddb.Reader // DB-IP/MaxMind for non-China IPs
 	ispDB       *geoip2.Reader    // MaxMind ISP database
@@ -220,12 +251,12 @@ func (p *Provider) Lookup(ipStr string) (*Location, error) {
 
 				if parts[1] != "0" && parts[1] != "" {
 					loc.Subdiv = parts[1]
-					loc.SubdivEN = parts[1] // Keep Chinese for subdivision
+					loc.SubdivEN = toEnglishName(parts[1])
 				}
 
 				if parts[2] != "0" && parts[2] != "" {
 					loc.City = parts[2]
-					loc.CityEN = parts[2] // Keep Chinese for city
+					loc.CityEN = toEnglishName(parts[2])
 				}
 
 				if parts[3] != "0" && parts[3] != "" {
