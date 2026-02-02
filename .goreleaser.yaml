@@ -134,30 +134,49 @@ release:
   header: |
     ## RouteLens {{ .Tag }}
     
-    ### Installation
+    A modern, agentless network observability platform.
     
-    **Binary (all platforms):**
-    Download the appropriate archive for your platform and extract.
+    ### 🚀 Quick Start
     
-    **Debian/Ubuntu:**
+    **Option 1: Docker (Recommended)**
     ```bash
+    docker run -d --name routelens \
+      --cap-add NET_RAW --cap-add NET_ADMIN \
+      -p 8080:8080 -v $(pwd)/data:/data \
+      -e RS_JWT_SECRET=$(openssl rand -hex 32) \
+      ghcr.io/yuanweize/routelens:{{ .Tag }}
+    ```
+    
+    **Option 2: Binary + Systemd**
+    ```bash
+    # Download and extract
+    curl -LO https://github.com/yuanweize/RouteLens/releases/download/{{ .Tag }}/routelens_{{ .Version }}_linux_amd64.tar.gz
+    tar xzf routelens_{{ .Version }}_linux_amd64.tar.gz
+    
+    # Install as systemd service
+    sudo ./routelens service install --port 8080
+    ```
+    
+    **Option 3: DEB/RPM Package**
+    ```bash
+    # Debian/Ubuntu
     sudo dpkg -i routelens_{{ .Version }}_linux_amd64.deb
-    sudo systemctl enable --now routelens
-    ```
     
-    **CentOS/RHEL:**
-    ```bash
+    # CentOS/RHEL  
     sudo rpm -i routelens_{{ .Version }}_linux_amd64.rpm
-    sudo systemctl enable --now routelens
     ```
     
-    **Docker:**
-    ```bash
-    docker pull ghcr.io/yuanweize/routelens:{{ .Tag }}
-    ```
+    ### ⚙️ Post-Install
+    
+    1. Open `http://your-server:8080`
+    2. Complete the setup wizard to create admin account
+    3. Add monitoring targets in the dashboard
+    
+    > ⚠️ **Production**: Set `RS_JWT_SECRET` environment variable for persistent sessions.
   footer: |
     ---
-    **Full Changelog**: https://github.com/yuanweize/RouteLens/compare/{{ .PreviousTag }}...{{ .Tag }}
+    📖 **Documentation**: https://github.com/yuanweize/RouteLens#readme
+    🐳 **Docker Hub**: `ghcr.io/yuanweize/routelens:{{ .Tag }}`
 
 # Announce (optional - can be enabled later)
 # announce:
