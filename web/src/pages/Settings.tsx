@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Card, Form, Input, Button, Typography, Tabs, Row, Col, Descriptions, Tag, Space, Spin, Progress, Modal, message, Statistic, InputNumber, Popconfirm, Alert } from 'antd';
-import { ReloadOutlined, InfoCircleOutlined, LockOutlined, CloudDownloadOutlined, DatabaseOutlined, DeleteOutlined, ClearOutlined, SettingOutlined } from '@ant-design/icons';
+import { ReloadOutlined, InfoCircleOutlined, LockOutlined, CloudDownloadOutlined, DatabaseOutlined, DeleteOutlined, ClearOutlined, SettingOutlined, GlobalOutlined } from '@ant-design/icons';
 import { useRequest } from 'ahooks';
 import { useTranslation } from 'react-i18next';
 import { 
   updatePassword, getSystemInfo, checkUpdate, performUpdate, 
   getDatabaseStats, cleanDatabase, vacuumDatabase, getSettings, saveSettings,
-  type SystemInfo, type UpdateCheckResult, type DatabaseStats, type SystemSettings 
+  getGeoIPStatus, updateGeoIP,
+  type SystemInfo, type UpdateCheckResult, type DatabaseStats, type SystemSettings, type GeoIPStatus
 } from '../api';
 
 const Settings: React.FC = () => {
@@ -31,6 +32,10 @@ const Settings: React.FC = () => {
   const [settings, setSettings] = useState<SystemSettings | null>(null);
   const [savingSettings, setSavingSettings] = useState(false);
 
+  // GeoIP state
+  const [geoipStatus, setGeoipStatus] = useState<GeoIPStatus | null>(null);
+  const [updatingGeoIP, setUpdatingGeoIP] = useState(false);
+
   const { run, loading } = useRequest(
     async (values: { newPassword: string }) => updatePassword(values.newPassword),
     {
@@ -46,6 +51,7 @@ const Settings: React.FC = () => {
     fetchSystemInfo();
     fetchDatabaseStats();
     fetchSettings();
+    fetchGeoIPStatus();
     // Auto-check for updates on mount (only once)
     handleCheckUpdateSilent();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -89,6 +95,32 @@ const Settings: React.FC = () => {
       settingsForm.setFieldsValue(s);
     } catch (e) {
       console.error('Failed to fetch settings:', e);
+    }
+  };
+
+  const fetchGeoIPStatus = async () => {
+    try {
+      const status = await getGeoIPStatus();
+      setGeoipStatus(status);
+    } catch (e) {
+      console.error('Failed to fetch GeoIP status:', e);
+    }
+  };
+
+  const handleUpdateGeoIP = async () => {
+    setUpdatingGeoIP(true);
+    try {
+      const result = await updateGeoIP();
+      if (result.success) {
+        message.success(t('settings.geoipUpdateSuccess') || 'GeoIP database updated successfully');
+        fetchGeoIPStatus();
+      } else {
+        message.error(result.message || t('settings.geoipUpdateFailed'));
+      }
+    } catch (e) {
+      message.error(t('settings.geoipUpdateFailed') || 'Failed to update GeoIP database');
+    } finally {
+      setUpdatingGeoIP(false);
     }
   };
 
@@ -270,6 +302,61 @@ const Settings: React.FC = () => {
     },
     {
       key: '2',
+      label: <span><GlobalOutlined style={{ marginRight: 6 }} />{t('settings.tabs.geoip') || 'GeoIP'}</span>,
+      children: (
+        <Card title={t('settings.geoipDatabase') || 'GeoIP Database'} style={{ maxWidth: 600 }}>
+          <Alert
+            message={t('settings.geoipInfo') || 'About GeoIP Database'}
+            description={t('settings.geoipDescription') || 'The GeoIP database is used to determine the geographic location of IP addresses. Update it regularly for accurate results.'}
+            type="info"
+            showIcon
+            style={{ marginBottom: 24 }}
+          />
+          {geoipStatus && (
+            <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+              <Col span={12}>
+                <Statistic 
+                  title={t('settings.geoipStatus') || 'Status'} 
+                  value={geoipStatus.available ? (t('settings.geoipAvailable') || 'Available') : (t('settings.geoipNotAvailable') || 'Not Available')} 
+                  valueStyle={{ color: geoipStatus.available ? '#52c41a' : '#ff4d4f' }}
+                />
+              </Col>
+              <Col span={12}>
+                <Statistic 
+                  title={t('settings.geoipSize') || 'Database Size'} 
+                  value={geoipStatus.available ? geoipStatus.size_human : '-'} 
+                />
+              </Col>
+              {geoipStatus.last_updated && (
+                <Col span={24}>
+                  <Typography.Text type="secondary">
+                    {t('settings.geoipLastUpdated') || 'Last Updated'}: {new Date(geoipStatus.last_updated).toLocaleString()}
+                  </Typography.Text>
+                </Col>
+              )}
+            </Row>
+          )}
+          <Space>
+            <Button 
+              type="primary" 
+              icon={<CloudDownloadOutlined />} 
+              onClick={handleUpdateGeoIP} 
+              loading={updatingGeoIP}
+            >
+              {t('settings.updateGeoIP') || 'Update GeoIP Database'}
+            </Button>
+            <Button icon={<ReloadOutlined />} onClick={fetchGeoIPStatus}>
+              {t('common.refresh') || 'Refresh'}
+            </Button>
+          </Space>
+          <Typography.Paragraph type="secondary" style={{ marginTop: 16 }}>
+            {t('settings.geoipSource') || 'Database source: GeoLite2-City from MaxMind (via GitHub mirror)'}
+          </Typography.Paragraph>
+        </Card>
+      ),
+    },
+    {
+      key: '3',
       label: <span><SettingOutlined style={{ marginRight: 6 }} />{t('settings.tabs.monitoring') || 'Monitoring'}</span>,
       children: (
         <Card title={t('settings.monitoringSettings') || 'Monitoring Settings'} style={{ maxWidth: 600 }}>
@@ -310,7 +397,7 @@ const Settings: React.FC = () => {
       ),
     },
     {
-      key: '3',
+      key: '4',
       label: <span><LockOutlined style={{ marginRight: 6 }} />{t('settings.tabs.security')}</span>,
       children: (
         <Card title={t('settings.changePassword')} style={{ maxWidth: 500 }}>
@@ -342,7 +429,7 @@ const Settings: React.FC = () => {
       ),
     },
     {
-      key: '4',
+      key: '5',
       label: <span><InfoCircleOutlined style={{ marginRight: 6 }} />{t('settings.tabs.about')}</span>,
       children: (
         <Row gutter={24}>

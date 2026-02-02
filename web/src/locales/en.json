@@ -105,7 +105,8 @@
       "security": "Security",
       "about": "About & Updates",
       "database": "Database",
-      "monitoring": "Monitoring"
+      "monitoring": "Monitoring",
+      "geoip": "GeoIP"
     },
     "systemInfo": "System Information",
     "softwareUpdate": "Software Update",
@@ -183,7 +184,19 @@
     "pingInterval": "Ping Interval (sec)",
     "pingIntervalTooltip": "How often to run ping/trace",
     "settingsSaved": "Settings saved",
-    "settingsSaveFailed": "Failed to save settings"
+    "settingsSaveFailed": "Failed to save settings",
+    "geoipDatabase": "GeoIP Database",
+    "geoipInfo": "About GeoIP Database",
+    "geoipDescription": "The GeoIP database is used to determine the geographic location of IP addresses. Update it regularly for accurate results.",
+    "geoipStatus": "Status",
+    "geoipAvailable": "Available",
+    "geoipNotAvailable": "Not Available",
+    "geoipSize": "Database Size",
+    "geoipLastUpdated": "Last Updated",
+    "updateGeoIP": "Update GeoIP Database",
+    "geoipUpdateSuccess": "GeoIP database updated successfully",
+    "geoipUpdateFailed": "Failed to update GeoIP database",
+    "geoipSource": "Database source: GeoLite2-City from MaxMind (via GitHub mirror)"
   },
   "logs": {
     "title": "System Logs",

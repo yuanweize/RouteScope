@@ -121,3 +121,18 @@ export const getSettings = () => request.get<SystemSettings>('/api/v1/system/set
 
 export const saveSettings = (settings: SystemSettings) => 
   request.post<SystemSettings>('/api/v1/system/settings', settings);
+
+// GeoIP Management API
+export interface GeoIPStatus {
+  available: boolean;
+  path: string;
+  size_bytes: number;
+  size_human: string;
+  mod_time?: string;
+  last_updated?: string;
+}
+
+export const getGeoIPStatus = () => request.get<GeoIPStatus>('/api/v1/system/geoip/status');
+
+export const updateGeoIP = () => 
+  request.post<{ success: boolean; message: string; size_human?: string }>('/api/v1/system/geoip/update');

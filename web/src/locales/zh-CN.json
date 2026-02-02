@@ -105,7 +105,8 @@
       "security": "安全设置",
       "about": "关于与更新",
       "database": "数据库",
-      "monitoring": "监控设置"
+      "monitoring": "监控设置",
+      "geoip": "GeoIP 数据库"
     },
     "systemInfo": "系统信息",
     "softwareUpdate": "软件更新",
@@ -183,7 +184,19 @@
     "pingInterval": "Ping 间隔 (秒)",
     "pingIntervalTooltip": "执行 Ping/Trace 的频率",
     "settingsSaved": "设置已保存",
-    "settingsSaveFailed": "保存设置失败"
+    "settingsSaveFailed": "保存设置失败",
+    "geoipDatabase": "GeoIP 数据库",
+    "geoipInfo": "关于 GeoIP 数据库",
+    "geoipDescription": "GeoIP 数据库用于确定 IP 地址的地理位置。建议定期更新以获得准确的结果。",
+    "geoipStatus": "状态",
+    "geoipAvailable": "可用",
+    "geoipNotAvailable": "不可用",
+    "geoipSize": "数据库大小",
+    "geoipLastUpdated": "最后更新",
+    "updateGeoIP": "更新 GeoIP 数据库",
+    "geoipUpdateSuccess": "GeoIP 数据库更新成功",
+    "geoipUpdateFailed": "更新 GeoIP 数据库失败",
+    "geoipSource": "数据库来源：MaxMind GeoLite2-City（通过 GitHub 镜像）"
   },
   "logs": {
     "title": "系统日志",

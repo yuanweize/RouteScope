@@ -3,8 +3,11 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/fs"
 	"net/http"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -25,6 +28,49 @@ var (
 
 // Rate limiter for login attempts: 5 attempts per IP per minute
 var loginRateLimiter = NewRateLimiter(5, time.Minute)
+
+// cleanSSHKeyInConfig cleans SSH key format in probe_config JSON
+// Removes \r\n (Windows line endings) and normalizes to \n
+func cleanSSHKeyInConfig(configJSON string) string {
+	var config map[string]interface{}
+	if err := json.Unmarshal([]byte(configJSON), &config); err != nil {
+		return configJSON // Return as-is if not valid JSON
+	}
+
+	// Clean ssh_key field if present
+	if key, ok := config["ssh_key"].(string); ok && key != "" {
+		// Replace \r\n with \n, then remove any standalone \r
+		key = strings.ReplaceAll(key, "\r\n", "\n")
+		key = strings.ReplaceAll(key, "\r", "")
+		// Trim whitespace
+		key = strings.TrimSpace(key)
+		// Ensure key ends with newline (required by SSH)
+		if !strings.HasSuffix(key, "\n") {
+			key += "\n"
+		}
+		config["ssh_key"] = key
+	}
+
+	result, err := json.Marshal(config)
+	if err != nil {
+		return configJSON
+	}
+	return string(result)
+}
+
+// formatBytes converts bytes to human-readable format
+func formatBytes(bytes int64) string {
+	const unit = 1024
+	if bytes < unit {
+		return fmt.Sprintf("%d B", bytes)
+	}
+	div, exp := int64(unit), 0
+	for n := bytes / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
+}
 
 type Server struct {
 	router   *gin.Engine
@@ -167,6 +213,10 @@ func (s *Server) setupRoutes() {
 		api.POST("/system/database/vacuum", s.handleVacuumDatabase)
 		api.GET("/system/settings", s.handleGetSettings)
 		api.POST("/system/settings", s.handleSaveSettings)
+
+		// GeoIP Management - Protected
+		api.GET("/system/geoip/status", s.handleGetGeoIPStatus)
+		api.POST("/system/geoip/update", s.handleUpdateGeoIP)
 	}
 }
 
@@ -425,6 +475,11 @@ func (s *Server) handleSaveTarget(c *gin.Context) {
 		return
 	}
 
+	// Clean SSH key in probe_config: remove \r\n and normalize to \n
+	if t.ProbeConfig != "" && t.ProbeType == storage.ProbeModeSSH {
+		t.ProbeConfig = cleanSSHKeyInConfig(t.ProbeConfig)
+	}
+
 	if t.ProbeType == "" {
 		t.ProbeType = storage.ProbeModeICMP
 	}
@@ -608,4 +663,94 @@ func (s *Server) handleSaveSettings(c *gin.Context) {
 	logging.Info("settings", "Settings updated: retention=%d days, speed=%d min, ping=%d sec",
 		req.RetentionDays, req.SpeedTestInterval, req.PingInterval)
 	c.JSON(http.StatusOK, s.settings)
+}
+
+// GeoIP Status Response
+type GeoIPStatus struct {
+	Available   bool   `json:"available"`
+	Path        string `json:"path"`
+	SizeBytes   int64  `json:"size_bytes"`
+	SizeHuman   string `json:"size_human"`
+	ModTime     string `json:"mod_time"`
+	LastUpdated string `json:"last_updated"`
+}
+
+func (s *Server) handleGetGeoIPStatus(c *gin.Context) {
+	geoipPath := filepath.Join(filepath.Dir(s.dbPath), "geoip", "GeoLite2-City.mmdb")
+
+	status := GeoIPStatus{
+		Available: false,
+		Path:      geoipPath,
+	}
+
+	if info, err := os.Stat(geoipPath); err == nil {
+		status.Available = true
+		status.SizeBytes = info.Size()
+		status.SizeHuman = formatBytes(info.Size())
+		status.ModTime = info.ModTime().Format(time.RFC3339)
+		status.LastUpdated = info.ModTime().Format("2006-01-02 15:04:05")
+	}
+
+	c.JSON(http.StatusOK, status)
+}
+
+func (s *Server) handleUpdateGeoIP(c *gin.Context) {
+	geoipDir := filepath.Join(filepath.Dir(s.dbPath), "geoip")
+	geoipPath := filepath.Join(geoipDir, "GeoLite2-City.mmdb")
+
+	// Create directory if not exists
+	if err := os.MkdirAll(geoipDir, 0755); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create geoip directory"})
+		return
+	}
+
+	// Download from a public mirror (using db-ip.com free database as fallback)
+	// MaxMind requires license key, so we use db-ip.com's free City database
+	downloadURL := "https://github.com/P3TERX/GeoLite.mmdb/releases/latest/download/GeoLite2-City.mmdb"
+
+	logging.Info("geoip", "Downloading GeoIP database from %s", downloadURL)
+
+	resp, err := http.Get(downloadURL)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Download failed: %v", err)})
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Download failed: HTTP %d", resp.StatusCode)})
+		return
+	}
+
+	// Write to temp file first
+	tmpPath := geoipPath + ".tmp"
+	out, err := os.Create(tmpPath)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to create temp file: %v", err)})
+		return
+	}
+
+	written, err := io.Copy(out, resp.Body)
+	out.Close()
+	if err != nil {
+		os.Remove(tmpPath)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to write file: %v", err)})
+		return
+	}
+
+	// Replace old file
+	if err := os.Rename(tmpPath, geoipPath); err != nil {
+		os.Remove(tmpPath)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to replace file: %v", err)})
+		return
+	}
+
+	logging.Info("geoip", "GeoIP database updated successfully: %s (%s)", geoipPath, formatBytes(written))
+
+	c.JSON(http.StatusOK, gin.H{
+		"success":    true,
+		"message":    "GeoIP database updated successfully",
+		"size_bytes": written,
+		"size_human": formatBytes(written),
+	})
 }
