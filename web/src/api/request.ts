@@ -20,13 +20,22 @@ instance.interceptors.request.use(
 instance.interceptors.response.use(
   (response) => response.data,
   (error) => {
+    const errorMessage = error.response?.data?.error || 'Network Error';
+    
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       if (window.location.pathname !== '/login') {
+        // Session expired, redirect to login
         window.location.href = '/login';
+      } else {
+        // Login failed (wrong credentials), show error message
+        message.error(errorMessage);
       }
+    } else if (error.response?.status === 429) {
+      // Rate limited
+      message.error(errorMessage);
     } else {
-      message.error(error.response?.data?.error || 'Network Error');
+      message.error(errorMessage);
     }
     return Promise.reject(error);
   }
