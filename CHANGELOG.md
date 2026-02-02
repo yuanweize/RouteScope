@@ -1,5 +1,28 @@
 # Changelog
 
+## [2.0.0](https://github.com/yuanweize/RouteLens/compare/v1.3.2...v2.0.0) (2026-02-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* v2.0.0 - Security hardening and code quality improvements
+
+### Features
+
+* **about:** dynamic GitHub releases download links ([a7bc0fb](https://github.com/yuanweize/RouteLens/commit/a7bc0fba4a6772786c696a6cfad27fa9241ef593))
+* add database management, settings, and time range selector ([18dbc87](https://github.com/yuanweize/RouteLens/commit/18dbc8772caafab3ec2d8e22c4f4e3c04559a70e))
+* add GeoIP database management and SSH key cleanup ([80b24b2](https://github.com/yuanweize/RouteLens/commit/80b24b2f9cf4982763cd5ad321f4113b57a5dd2e))
+* enhance GeoIP status display with database metadata ([7251991](https://github.com/yuanweize/RouteLens/commit/72519917951914fb64856ae1fa9717e861d9aacd))
+* v1.4.0 - database management, time range selector, improved UI ([44cd139](https://github.com/yuanweize/RouteLens/commit/44cd139218b9bcbc99df687bd9546af8b7ed7ca0))
+* v2.0.0 - Security hardening and code quality improvements ([60099d5](https://github.com/yuanweize/RouteLens/commit/60099d5f6737ee97f6fbf2a39ea2a55f0a8e1794))
+
+
+### Bug Fixes
+
+* display IPv4 + IPv6 for GeoIP ip_version 6 ([fc14ebd](https://github.com/yuanweize/RouteLens/commit/fc14ebde770f72aab9472b556a65e25659b8e331))
+* **targets:** parse probe_config when editing to populate SSH fields ([e657096](https://github.com/yuanweize/RouteLens/commit/e6570965bd98fe04b29967a439a0846aa2a1f637))
+* **ui:** show error messages on login page for 401/429 errors ([5461e72](https://github.com/yuanweize/RouteLens/commit/5461e7207610a31a797d1ff41a8536289fc2714c))
+
 ## [1.3.2](https://github.com/yuanweize/RouteLens/compare/v1.3.1...v1.3.2) (2026-02-02)
 
 
