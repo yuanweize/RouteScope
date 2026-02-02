@@ -269,17 +269,34 @@ func (s *Server) handleSetup(c *gin.Context) {
 		Password string `json:"password"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 		return
 	}
 
-	hashed, _ := auth.HashPassword(req.Password)
+	// Validate username
+	if len(req.Username) < 3 || len(req.Username) > 32 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Username must be 3-32 characters"})
+		return
+	}
+	// Validate password
+	if len(req.Password) < 6 || len(req.Password) > 72 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Password must be 6-72 characters"})
+		return
+	}
+
+	hashed, err := auth.HashPassword(req.Password)
+	if err != nil {
+		logging.Error("setup", "Failed to hash password: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process password"})
+		return
+	}
 	user := &storage.User{
 		Username: req.Username,
 		Password: hashed,
 	}
 	if err := s.db.SaveUser(user); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		logging.Error("setup", "Failed to save user: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
 		return
 	}
 
@@ -291,7 +308,13 @@ func (s *Server) handleUpdatePassword(c *gin.Context) {
 		NewPassword string `json:"new_password"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	// Validate password
+	if len(req.NewPassword) < 6 || len(req.NewPassword) > 72 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Password must be 6-72 characters"})
 		return
 	}
 
@@ -304,9 +327,15 @@ func (s *Server) handleUpdatePassword(c *gin.Context) {
 	}
 
 	// Hash new password and update the existing record
-	hashed, _ := auth.HashPassword(req.NewPassword)
+	hashed, err := auth.HashPassword(req.NewPassword)
+	if err != nil {
+		logging.Error("password", "Failed to hash password: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process password"})
+		return
+	}
 	if err := s.db.UpdateUserPassword(user.ID, hashed); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		logging.Error("password", "Failed to update password: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update password"})
 		return
 	}
 
@@ -316,7 +345,8 @@ func (s *Server) handleUpdatePassword(c *gin.Context) {
 func (s *Server) handleStatus(c *gin.Context) {
 	targets, err := s.db.GetTargets(false)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		logging.Error("api", "Failed to get targets: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch targets"})
 		return
 	}
 
@@ -372,7 +402,8 @@ func (s *Server) handleHistory(c *gin.Context) {
 
 	records, err := s.db.GetHistory(target, start, end)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		logging.Error("api", "Failed to get history for %s: %v", target, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch history"})
 		return
 	}
 
@@ -386,6 +417,12 @@ func (s *Server) handleProbe(c *gin.Context) {
 	_ = c.ShouldBindJSON(&req)
 	if req.Target == "" {
 		req.Target = c.Query("target")
+	}
+
+	// Validate target if provided
+	if req.Target != "" && !targetPattern.MatchString(req.Target) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid target format"})
+		return
 	}
 
 	s.monitor.TriggerProbe(req.Target)
@@ -448,7 +485,8 @@ func (s *Server) handleTrace(c *gin.Context) {
 func (s *Server) handleGetTargets(c *gin.Context) {
 	targets, err := s.db.GetTargets(false)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		logging.Error("api", "Failed to get targets: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch targets"})
 		return
 	}
 	c.JSON(http.StatusOK, targets)
@@ -457,7 +495,7 @@ func (s *Server) handleGetTargets(c *gin.Context) {
 func (s *Server) handleSaveTarget(c *gin.Context) {
 	var t storage.Target
 	if err := c.ShouldBindJSON(&t); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
 
@@ -514,7 +552,8 @@ func (s *Server) handleSaveTarget(c *gin.Context) {
 		// Preserve created_at from existing record
 		t.CreatedAt = existing.CreatedAt
 		if err := s.db.UpdateTarget(&t); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			logging.Error("api", "Failed to update target %d: %v", t.ID, err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update target"})
 			return
 		}
 	}
@@ -530,7 +569,8 @@ func (s *Server) handleDeleteTarget(c *gin.Context) {
 		return
 	}
 	if err := s.db.DeleteTarget(uint(id)); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		logging.Error("api", "Failed to delete target %d: %v", id, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete target"})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Target deleted"})
@@ -587,7 +627,8 @@ func (s *Server) handleGetLogs(c *gin.Context) {
 func (s *Server) handleGetDatabaseStats(c *gin.Context) {
 	stats, err := s.db.GetDatabaseStats(s.dbPath, s.settings.RetentionDays)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		logging.Error("api", "Failed to get database stats: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get database statistics"})
 		return
 	}
 	c.JSON(http.StatusOK, stats)
@@ -606,7 +647,8 @@ func (s *Server) handleCleanDatabase(c *gin.Context) {
 
 	deleted, err := s.db.CleanOldRecords(req.Days)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		logging.Error("database", "Failed to clean old records: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to clean database"})
 		return
 	}
 
@@ -619,7 +661,8 @@ func (s *Server) handleCleanDatabase(c *gin.Context) {
 
 func (s *Server) handleVacuumDatabase(c *gin.Context) {
 	if err := s.db.VacuumDatabase(); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		logging.Error("database", "Failed to vacuum database: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to vacuum database"})
 		return
 	}
 
@@ -641,7 +684,7 @@ func (s *Server) handleGetSettings(c *gin.Context) {
 func (s *Server) handleSaveSettings(c *gin.Context) {
 	var req SystemSettings
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
 

@@ -28,6 +28,11 @@ func NewTracerouteRunner(target string) *TracerouteRunner {
 
 // Run executes a traceroute
 func (t *TracerouteRunner) Run() (*TraceResult, error) {
+	// Security: Validate target before use
+	if err := ValidateTarget(t.Target); err != nil {
+		return nil, fmt.Errorf("invalid target: %w", err)
+	}
+
 	dstAddr, err := net.ResolveIPAddr("ip4", t.Target)
 	if err != nil {
 		return nil, err

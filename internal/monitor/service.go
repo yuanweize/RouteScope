@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/yuanweize/RouteLens/pkg/geoip"
@@ -21,6 +22,7 @@ import (
 type Service struct {
 	db              *storage.DB
 	targets         []storage.Target
+	targetsMu       sync.RWMutex // Protects targets slice
 	pingTicker      *time.Ticker
 	speedTicker     *time.Ticker
 	refreshTicker   *time.Ticker
@@ -46,7 +48,9 @@ func (s *Service) refreshTargets() {
 		log.Printf("Failed to refresh targets: %v", err)
 		return
 	}
+	s.targetsMu.Lock()
 	s.targets = targets
+	s.targetsMu.Unlock()
 }
 
 func (s *Service) Start() {
@@ -85,7 +89,10 @@ func (s *Service) runLoop() {
 		case <-s.refreshTicker.C:
 			s.refreshTargets()
 		case <-s.heartbeatTicker.C:
-			logging.Info("monitor", "Heartbeat: System healthy, monitoring %d targets", len(s.targets))
+			s.targetsMu.RLock()
+			targetCount := len(s.targets)
+			s.targetsMu.RUnlock()
+			logging.Info("monitor", "Heartbeat: System healthy, monitoring %d targets", targetCount)
 		case <-s.stopChan:
 			log.Println("Monitor Service Stopped")
 			logging.Info("monitor", "Monitor Service Stopped")
@@ -98,20 +105,30 @@ func (s *Service) runPingTraceCycle() {
 	// Ping/Trace is common for almost all modes except maybe pure HTTP?
 	// User said "Mode A: ICMP/MTR Only (默认)": 仅监控延迟和丢包。
 	// So we keep ICMP/Trace as a baseline.
+	s.targetsMu.RLock()
+	targetsCopy := make([]storage.Target, len(s.targets))
+	copy(targetsCopy, s.targets)
+	s.targetsMu.RUnlock()
+
 	enabledTargets := 0
-	for _, target := range s.targets {
+	for _, target := range targetsCopy {
 		if !target.Enabled {
 			continue // Skip disabled targets
 		}
 		enabledTargets++
 		go s.runPingTraceForTarget(target)
 	}
-	logging.Info("monitor", "Starting ping/trace cycle for %d targets (total: %d)", enabledTargets, len(s.targets))
+	logging.Info("monitor", "Starting ping/trace cycle for %d targets (total: %d)", enabledTargets, len(targetsCopy))
 }
 
 func (s *Service) runSpeedCycle() {
+	s.targetsMu.RLock()
+	targetsCopy := make([]storage.Target, len(s.targets))
+	copy(targetsCopy, s.targets)
+	s.targetsMu.RUnlock()
+
 	speedTargets := []storage.Target{}
-	for _, target := range s.targets {
+	for _, target := range targetsCopy {
 		if !target.Enabled {
 			continue // Skip disabled targets
 		}
@@ -274,8 +291,13 @@ func (s *Service) runSpeedForTarget(t storage.Target) {
 }
 
 func (s *Service) TriggerProbe(target string) {
+	s.targetsMu.RLock()
+	targetsCopy := make([]storage.Target, len(s.targets))
+	copy(targetsCopy, s.targets)
+	s.targetsMu.RUnlock()
+
 	if target == "" {
-		for _, t := range s.targets {
+		for _, t := range targetsCopy {
 			go s.runPingTraceForTarget(t)
 			if t.ProbeType != storage.ProbeModeICMP && t.ProbeType != "" {
 				go s.runSpeedForTarget(t)
@@ -284,7 +306,7 @@ func (s *Service) TriggerProbe(target string) {
 		return
 	}
 
-	for _, t := range s.targets {
+	for _, t := range targetsCopy {
 		if t.Address == target {
 			go s.runPingTraceForTarget(t)
 			if t.ProbeType != storage.ProbeModeICMP && t.ProbeType != "" {
