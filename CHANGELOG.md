@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.4.0](https://github.com/yuanweize/RouteLens/compare/v1.3.2...v1.4.0) (2026-02-02)
+
+
+### Features
+
+* **about:** dynamic GitHub releases download links ([a7bc0fb](https://github.com/yuanweize/RouteLens/commit/a7bc0fba4a6772786c696a6cfad27fa9241ef593))
+
+
+### Bug Fixes
+
+* **ui:** show error messages on login page for 401/429 errors ([5461e72](https://github.com/yuanweize/RouteLens/commit/5461e7207610a31a797d1ff41a8536289fc2714c))
+
 ## [1.3.2](https://github.com/yuanweize/RouteLens/compare/v1.3.1...v1.3.2) (2026-02-02)
 
 
