@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/fs"
 	"net/http"
 	"regexp"
@@ -26,19 +27,27 @@ var (
 var loginRateLimiter = NewRateLimiter(5, time.Minute)
 
 type Server struct {
-	router  *gin.Engine
-	db      *storage.DB
-	monitor *monitor.Service
-	distFS  fs.FS
+	router   *gin.Engine
+	db       *storage.DB
+	monitor  *monitor.Service
+	distFS   fs.FS
+	dbPath   string
+	settings SystemSettings
 }
 
-func NewServer(db *storage.DB, mon *monitor.Service, distFS fs.FS) *Server {
+func NewServer(db *storage.DB, mon *monitor.Service, distFS fs.FS, dbPath string) *Server {
 	r := gin.Default()
 	s := &Server{
 		router:  r,
 		db:      db,
 		monitor: mon,
 		distFS:  distFS,
+		dbPath:  dbPath,
+		settings: SystemSettings{
+			RetentionDays:     30,
+			SpeedTestInterval: 5,
+			PingInterval:      30,
+		},
 	}
 	s.setupRoutes()
 	return s
@@ -151,6 +160,13 @@ func (s *Server) setupRoutes() {
 		// System Update (Self-Update) - Protected
 		api.GET("/system/check-update", s.handleCheckUpdate)
 		api.POST("/system/update", s.handlePerformUpdate)
+
+		// Database Management - Protected
+		api.GET("/system/database/stats", s.handleGetDatabaseStats)
+		api.POST("/system/database/clean", s.handleCleanDatabase)
+		api.POST("/system/database/vacuum", s.handleVacuumDatabase)
+		api.GET("/system/settings", s.handleGetSettings)
+		api.POST("/system/settings", s.handleSaveSettings)
 	}
 }
 
@@ -508,4 +524,88 @@ func (s *Server) handleGetLogs(c *gin.Context) {
 		"logs":  entries,
 		"count": len(entries),
 	})
+}
+
+// --- Database Management Handlers ---
+
+func (s *Server) handleGetDatabaseStats(c *gin.Context) {
+	stats, err := s.db.GetDatabaseStats(s.dbPath, s.settings.RetentionDays)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, stats)
+}
+
+func (s *Server) handleCleanDatabase(c *gin.Context) {
+	var req struct {
+		Days int `json:"days"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		req.Days = s.settings.RetentionDays
+	}
+	if req.Days < 1 {
+		req.Days = 7
+	}
+
+	deleted, err := s.db.CleanOldRecords(req.Days)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	logging.Info("database", "Cleaned %d old records (older than %d days)", deleted, req.Days)
+	c.JSON(http.StatusOK, gin.H{
+		"message": fmt.Sprintf("Deleted %d records older than %d days", deleted, req.Days),
+		"deleted": deleted,
+	})
+}
+
+func (s *Server) handleVacuumDatabase(c *gin.Context) {
+	if err := s.db.VacuumDatabase(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	logging.Info("database", "Database vacuumed successfully")
+	c.JSON(http.StatusOK, gin.H{"message": "Database vacuumed successfully"})
+}
+
+// Settings management
+type SystemSettings struct {
+	RetentionDays int `json:"retention_days"`
+	SpeedTestInterval int `json:"speed_test_interval_minutes"`
+	PingInterval int `json:"ping_interval_seconds"`
+}
+
+func (s *Server) handleGetSettings(c *gin.Context) {
+	c.JSON(http.StatusOK, s.settings)
+}
+
+func (s *Server) handleSaveSettings(c *gin.Context) {
+	var req SystemSettings
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Validate
+	if req.RetentionDays < 1 {
+		req.RetentionDays = 7
+	}
+	if req.RetentionDays > 365 {
+		req.RetentionDays = 365
+	}
+	if req.SpeedTestInterval < 1 {
+		req.SpeedTestInterval = 5
+	}
+	if req.PingInterval < 10 {
+		req.PingInterval = 30
+	}
+
+	s.settings = req
+	// TODO: Persist settings to database or config file
+	logging.Info("settings", "Settings updated: retention=%d days, speed=%d min, ping=%d sec",
+		req.RetentionDays, req.SpeedTestInterval, req.PingInterval)
+	c.JSON(http.StatusOK, s.settings)
 }

@@ -2,6 +2,7 @@ package storage
 
 import (
 	"fmt"
+	"os"
 	"time"
 )
 
@@ -149,4 +150,70 @@ func (d *DB) HasAnyUser() bool {
 	var count int64
 	d.conn.Model(&User{}).Count(&count)
 	return count > 0
+}
+
+// --- Database Management ---
+
+// DatabaseStats returns database statistics
+type DatabaseStats struct {
+	SizeBytes      int64  `json:"size_bytes"`
+	SizeHuman      string `json:"size_human"`
+	RecordCount    int64  `json:"record_count"`
+	TargetCount    int64  `json:"target_count"`
+	OldestRecord   string `json:"oldest_record,omitempty"`
+	NewestRecord   string `json:"newest_record,omitempty"`
+	RetentionDays  int    `json:"retention_days"`
+}
+
+// GetDatabaseStats returns statistics about the database
+func (d *DB) GetDatabaseStats(dbPath string, retentionDays int) (*DatabaseStats, error) {
+	stats := &DatabaseStats{RetentionDays: retentionDays}
+
+	// File size
+	if fi, err := os.Stat(dbPath); err == nil {
+		stats.SizeBytes = fi.Size()
+		stats.SizeHuman = formatBytes(fi.Size())
+	}
+
+	// Record count
+	d.conn.Model(&MonitorRecord{}).Count(&stats.RecordCount)
+
+	// Target count
+	d.conn.Model(&Target{}).Count(&stats.TargetCount)
+
+	// Oldest and newest records
+	var oldest, newest MonitorRecord
+	if d.conn.Model(&MonitorRecord{}).Order("created_at ASC").First(&oldest).Error == nil {
+		stats.OldestRecord = oldest.CreatedAt.Format(time.RFC3339)
+	}
+	if d.conn.Model(&MonitorRecord{}).Order("created_at DESC").First(&newest).Error == nil {
+		stats.NewestRecord = newest.CreatedAt.Format(time.RFC3339)
+	}
+
+	return stats, nil
+}
+
+// CleanOldRecords deletes records older than the specified number of days
+func (d *DB) CleanOldRecords(days int) (int64, error) {
+	cutoff := time.Now().AddDate(0, 0, -days)
+	result := d.conn.Where("created_at < ?", cutoff).Delete(&MonitorRecord{})
+	return result.RowsAffected, result.Error
+}
+
+// VacuumDatabase runs VACUUM to reclaim space
+func (d *DB) VacuumDatabase() error {
+	return d.conn.Exec("VACUUM").Error
+}
+
+func formatBytes(bytes int64) string {
+	const unit = 1024
+	if bytes < unit {
+		return fmt.Sprintf("%d B", bytes)
+	}
+	div, exp := int64(unit), 0
+	for n := bytes / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
 }

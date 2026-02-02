@@ -91,3 +91,33 @@ export interface ReleasesInfo {
 }
 
 export const getReleases = () => request.get<ReleasesInfo>('/api/v1/system/releases');
+
+// Database Management API
+export interface DatabaseStats {
+  size_bytes: number;
+  size_human: string;
+  record_count: number;
+  target_count: number;
+  oldest_record?: string;
+  newest_record?: string;
+  retention_days: number;
+}
+
+export interface SystemSettings {
+  retention_days: number;
+  speed_test_interval_minutes: number;
+  ping_interval_seconds: number;
+}
+
+export const getDatabaseStats = () => request.get<DatabaseStats>('/api/v1/system/database/stats');
+
+export const cleanDatabase = (days?: number) => 
+  request.post<{ message: string; deleted: number }>('/api/v1/system/database/clean', { days });
+
+export const vacuumDatabase = () => 
+  request.post<{ message: string }>('/api/v1/system/database/vacuum');
+
+export const getSettings = () => request.get<SystemSettings>('/api/v1/system/settings');
+
+export const saveSettings = (settings: SystemSettings) => 
+  request.post<SystemSettings>('/api/v1/system/settings', settings);

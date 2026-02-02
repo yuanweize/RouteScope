@@ -33,6 +33,16 @@ const Dashboard: React.FC = () => {
   const { t, i18n } = useTranslation();
   const [selectedTarget, setSelectedTarget] = useState<string>('');
   const [trace, setTrace] = useState<any>(null);
+  const [timeRange, setTimeRange] = useState<number>(6); // hours
+
+  const timeRangeOptions = [
+    { value: 1, label: t('timeRange.1h') || '1 Hour' },
+    { value: 6, label: t('timeRange.6h') || '6 Hours' },
+    { value: 12, label: t('timeRange.12h') || '12 Hours' },
+    { value: 24, label: t('timeRange.24h') || '24 Hours' },
+    { value: 168, label: t('timeRange.7d') || '7 Days' },
+    { value: 720, label: t('timeRange.30d') || '30 Days' },
+  ];
 
   const { data: targets = [] } = useRequest(getTargets);
 
@@ -48,10 +58,22 @@ const Dashboard: React.FC = () => {
     }
   }, [targets, selectedTarget]);
 
-  const { data: history = [] } = useRequest(() => getHistory({ target: selectedTarget }), {
-    refreshDeps: [selectedTarget],
-    ready: !!selectedTarget,
-  });
+  const { data: history = [] } = useRequest(
+    () => {
+      const end = new Date();
+      const start = new Date(end.getTime() - timeRange * 60 * 60 * 1000);
+      return getHistory({
+        target: selectedTarget,
+        start: start.toISOString(),
+        end: end.toISOString(),
+      });
+    },
+    {
+      refreshDeps: [selectedTarget, timeRange],
+      ready: !!selectedTarget,
+      pollingInterval: 30000, // refresh every 30s
+    }
+  );
 
   // Re-fetch trace when language changes for localized location names
   useRequest(
@@ -292,7 +314,19 @@ const Dashboard: React.FC = () => {
           </Card>
         </Col>
         <Col span={8}>
-          <Card className="chart-card" title={t('dashboard.historicalMetrics')}>
+          <Card 
+            className="chart-card" 
+            title={t('dashboard.historicalMetrics')}
+            extra={
+              <Select
+                size="small"
+                style={{ width: 100 }}
+                value={timeRange}
+                onChange={setTimeRange}
+                options={timeRangeOptions}
+              />
+            }
+          >
             <MetricsChart history={history} isDark={isDark} />
           </Card>
         </Col>

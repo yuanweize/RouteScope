@@ -1,13 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Form, Input, Button, Typography, Tabs, Row, Col, Descriptions, Tag, Space, Spin, Progress, Modal, message } from 'antd';
-import { ReloadOutlined, InfoCircleOutlined, LockOutlined, CloudDownloadOutlined } from '@ant-design/icons';
+import { Card, Form, Input, Button, Typography, Tabs, Row, Col, Descriptions, Tag, Space, Spin, Progress, Modal, message, Statistic, InputNumber, Popconfirm, Alert } from 'antd';
+import { ReloadOutlined, InfoCircleOutlined, LockOutlined, CloudDownloadOutlined, DatabaseOutlined, DeleteOutlined, ClearOutlined, SettingOutlined } from '@ant-design/icons';
 import { useRequest } from 'ahooks';
 import { useTranslation } from 'react-i18next';
-import { updatePassword, getSystemInfo, checkUpdate, performUpdate, type SystemInfo, type UpdateCheckResult } from '../api';
+import { 
+  updatePassword, getSystemInfo, checkUpdate, performUpdate, 
+  getDatabaseStats, cleanDatabase, vacuumDatabase, getSettings, saveSettings,
+  type SystemInfo, type UpdateCheckResult, type DatabaseStats, type SystemSettings 
+} from '../api';
 
 const Settings: React.FC = () => {
   const { t } = useTranslation();
   const [form] = Form.useForm();
+  const [settingsForm] = Form.useForm();
   
   // System info & update state
   const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
@@ -15,6 +20,16 @@ const Settings: React.FC = () => {
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [updateProgress, setUpdateProgress] = useState(0);
+
+  // Database state
+  const [dbStats, setDbStats] = useState<DatabaseStats | null>(null);
+  const [loadingStats, setLoadingStats] = useState(false);
+  const [cleaning, setCleaning] = useState(false);
+  const [vacuuming, setVacuuming] = useState(false);
+
+  // Settings state
+  const [settings, setSettings] = useState<SystemSettings | null>(null);
+  const [savingSettings, setSavingSettings] = useState(false);
 
   const { run, loading } = useRequest(
     async (values: { newPassword: string }) => updatePassword(values.newPassword),
@@ -29,6 +44,8 @@ const Settings: React.FC = () => {
 
   useEffect(() => {
     fetchSystemInfo();
+    fetchDatabaseStats();
+    fetchSettings();
     // Auto-check for updates on mount (only once)
     handleCheckUpdateSilent();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -50,6 +67,28 @@ const Settings: React.FC = () => {
       setSystemInfo(info);
     } catch (e) {
       console.error('Failed to fetch system info:', e);
+    }
+  };
+
+  const fetchDatabaseStats = async () => {
+    setLoadingStats(true);
+    try {
+      const stats = await getDatabaseStats();
+      setDbStats(stats);
+    } catch (e) {
+      console.error('Failed to fetch database stats:', e);
+    } finally {
+      setLoadingStats(false);
+    }
+  };
+
+  const fetchSettings = async () => {
+    try {
+      const s = await getSettings();
+      setSettings(s);
+      settingsForm.setFieldsValue(s);
+    } catch (e) {
+      console.error('Failed to fetch settings:', e);
     }
   };
 
@@ -102,9 +141,176 @@ const Settings: React.FC = () => {
     }
   };
 
+  const handleCleanDatabase = async () => {
+    setCleaning(true);
+    try {
+      const result = await cleanDatabase(dbStats?.retention_days || 30);
+      message.success(t('settings.dbCleanSuccess', { count: result.deleted }) || `Deleted ${result.deleted} old records`);
+      fetchDatabaseStats();
+    } catch (e) {
+      message.error(t('settings.dbCleanFailed') || 'Failed to clean database');
+    } finally {
+      setCleaning(false);
+    }
+  };
+
+  const handleVacuum = async () => {
+    setVacuuming(true);
+    try {
+      await vacuumDatabase();
+      message.success(t('settings.dbVacuumSuccess') || 'Database optimized successfully');
+      fetchDatabaseStats();
+    } catch (e) {
+      message.error(t('settings.dbVacuumFailed') || 'Failed to optimize database');
+    } finally {
+      setVacuuming(false);
+    }
+  };
+
+  const handleSaveSettings = async () => {
+    setSavingSettings(true);
+    try {
+      const values = await settingsForm.validateFields();
+      const result = await saveSettings(values);
+      setSettings(result);
+      message.success(t('settings.settingsSaved') || 'Settings saved');
+    } catch (e) {
+      message.error(t('settings.settingsSaveFailed') || 'Failed to save settings');
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
   const tabItems = [
     {
       key: '1',
+      label: <span><DatabaseOutlined style={{ marginRight: 6 }} />{t('settings.tabs.database') || 'Database'}</span>,
+      children: (
+        <Row gutter={[24, 24]}>
+          <Col xs={24} lg={12}>
+            <Card title={t('settings.databaseStats') || 'Database Statistics'} loading={loadingStats}>
+              {dbStats && (
+                <Row gutter={[16, 16]}>
+                  <Col span={12}>
+                    <Statistic 
+                      title={t('settings.dbSize') || 'Database Size'} 
+                      value={dbStats.size_human} 
+                    />
+                  </Col>
+                  <Col span={12}>
+                    <Statistic 
+                      title={t('settings.recordCount') || 'Records'} 
+                      value={dbStats.record_count} 
+                    />
+                  </Col>
+                  <Col span={12}>
+                    <Statistic 
+                      title={t('settings.targetCount') || 'Targets'} 
+                      value={dbStats.target_count} 
+                    />
+                  </Col>
+                  <Col span={12}>
+                    <Statistic 
+                      title={t('settings.retentionDays') || 'Retention'} 
+                      value={dbStats.retention_days} 
+                      suffix={t('common.days') || 'days'}
+                    />
+                  </Col>
+                  {dbStats.oldest_record && (
+                    <Col span={24}>
+                      <Typography.Text type="secondary">
+                        {t('settings.oldestRecord') || 'Oldest'}: {new Date(dbStats.oldest_record).toLocaleString()}
+                      </Typography.Text>
+                    </Col>
+                  )}
+                </Row>
+              )}
+            </Card>
+          </Col>
+          <Col xs={24} lg={12}>
+            <Card title={t('settings.databaseActions') || 'Database Actions'}>
+              <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                <Alert 
+                  message={t('settings.dbCleanWarning') || 'Cleaning will delete old monitoring records'} 
+                  type="warning" 
+                  showIcon 
+                />
+                <Space>
+                  <Popconfirm
+                    title={t('settings.confirmClean') || 'Clean old records?'}
+                    description={t('settings.confirmCleanDesc', { days: dbStats?.retention_days || 30 }) || `Delete records older than ${dbStats?.retention_days || 30} days`}
+                    onConfirm={handleCleanDatabase}
+                    okText={t('common.yes') || 'Yes'}
+                    cancelText={t('common.no') || 'No'}
+                  >
+                    <Button icon={<DeleteOutlined />} loading={cleaning} danger>
+                      {t('settings.cleanOldRecords') || 'Clean Old Records'}
+                    </Button>
+                  </Popconfirm>
+                  <Popconfirm
+                    title={t('settings.confirmVacuum') || 'Optimize database?'}
+                    description={t('settings.confirmVacuumDesc') || 'This may take a moment for large databases'}
+                    onConfirm={handleVacuum}
+                    okText={t('common.yes') || 'Yes'}
+                    cancelText={t('common.no') || 'No'}
+                  >
+                    <Button icon={<ClearOutlined />} loading={vacuuming}>
+                      {t('settings.optimizeDatabase') || 'Optimize (Vacuum)'}
+                    </Button>
+                  </Popconfirm>
+                </Space>
+                <Button icon={<ReloadOutlined />} onClick={fetchDatabaseStats} loading={loadingStats}>
+                  {t('common.refresh') || 'Refresh'}
+                </Button>
+              </Space>
+            </Card>
+          </Col>
+        </Row>
+      ),
+    },
+    {
+      key: '2',
+      label: <span><SettingOutlined style={{ marginRight: 6 }} />{t('settings.tabs.monitoring') || 'Monitoring'}</span>,
+      children: (
+        <Card title={t('settings.monitoringSettings') || 'Monitoring Settings'} style={{ maxWidth: 600 }}>
+          <Form
+            form={settingsForm}
+            layout="vertical"
+            initialValues={settings || { retention_days: 30, speed_test_interval_minutes: 5, ping_interval_seconds: 30 }}
+          >
+            <Form.Item
+              name="retention_days"
+              label={t('settings.retentionDays') || 'Data Retention (days)'}
+              rules={[{ required: true }]}
+              tooltip={t('settings.retentionDaysTooltip') || 'How long to keep monitoring data'}
+            >
+              <InputNumber min={1} max={365} style={{ width: '100%' }} />
+            </Form.Item>
+            <Form.Item
+              name="speed_test_interval_minutes"
+              label={t('settings.speedTestInterval') || 'Speed Test Interval (minutes)'}
+              rules={[{ required: true }]}
+              tooltip={t('settings.speedTestIntervalTooltip') || 'How often to run speed tests'}
+            >
+              <InputNumber min={1} max={60} style={{ width: '100%' }} />
+            </Form.Item>
+            <Form.Item
+              name="ping_interval_seconds"
+              label={t('settings.pingInterval') || 'Ping Interval (seconds)'}
+              rules={[{ required: true }]}
+              tooltip={t('settings.pingIntervalTooltip') || 'How often to run ping/trace'}
+            >
+              <InputNumber min={10} max={300} style={{ width: '100%' }} />
+            </Form.Item>
+            <Button type="primary" onClick={handleSaveSettings} loading={savingSettings}>
+              {t('common.save') || 'Save'}
+            </Button>
+          </Form>
+        </Card>
+      ),
+    },
+    {
+      key: '3',
       label: <span><LockOutlined style={{ marginRight: 6 }} />{t('settings.tabs.security')}</span>,
       children: (
         <Card title={t('settings.changePassword')} style={{ maxWidth: 500 }}>
@@ -136,7 +342,7 @@ const Settings: React.FC = () => {
       ),
     },
     {
-      key: '2',
+      key: '4',
       label: <span><InfoCircleOutlined style={{ marginRight: 6 }} />{t('settings.tabs.about')}</span>,
       children: (
         <Row gutter={24}>

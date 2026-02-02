@@ -53,7 +53,7 @@ func runServer(port, dbPath string) {
 	defer mon.Stop()
 
 	// 4. API Server
-	server := api.NewServer(db, mon, web.DistFS)
+	server := api.NewServer(db, mon, web.DistFS, dbPath)
 
 	log.Printf("Starting API Server on %s...", port)
 	if err := server.Run(port); err != nil {
