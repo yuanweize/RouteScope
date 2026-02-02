@@ -1,15 +1,53 @@
+# RouteLens Docker Compose Configuration
+# Documentation: https://github.com/yuanweize/RouteLens
+#
+# Quick Start:
+#   1. Copy this file: curl -O https://raw.githubusercontent.com/yuanweize/RouteLens/master/compose.yml
+#   2. (Optional) Create .env file with RS_JWT_SECRET
+#   3. Run: docker compose up -d
+#   4. Open: http://localhost:8080
+
 services:
   routelens:
     image: ghcr.io/yuanweize/routelens:latest
     container_name: routelens
+    
+    # Network mode: host recommended for accurate MTR/Ping TTL control
+    # If using bridge mode, uncomment ports section below
     network_mode: host
+    
+    # Required capabilities for raw socket operations (ping/traceroute)
     cap_add:
       - NET_RAW
       - NET_ADMIN
+    
     volumes:
+      # Persistent data: SQLite database and GeoIP files
       - ./data:/data
-    env_file:
-      - .env
-    restart: always
+    
+    environment:
+      # ⚠️ SECURITY: Set this in production! Uncomment and change the value.
+      # If not set, a random secret is generated (sessions lost on restart)
+      # RS_JWT_SECRET: your-super-secure-random-string-at-least-32-chars
+      
+      # Optional: Probe interval in seconds (default: 30)
+      # RS_PROBE_INTERVAL: 60
+      
+      # Optional: Log level (debug/info/warn/error)
+      # RS_LOG_LEVEL: info
+    
+    # Uncomment if using bridge mode instead of host mode
+    # ports:
+    #   - "8080:8080"
+    
+    restart: unless-stopped
 
-# Note: Using network_mode: host for accurate MTR/Ping TTL control
+# Alternative: Bridge network mode (less accurate but more isolated)
+# Uncomment below and comment out network_mode: host above
+#
+# services:
+#   routelens:
+#     ...
+#     ports:
+#       - "8080:8080"
+#     # Remove network_mode: host

@@ -1,12 +1,64 @@
+# =========================
+# RouteLens .gitignore
+# =========================
+
 # Build artifacts
+routelens
+routelens_linux
 routelens_linux_amd64
+routelens_darwin_*
+routelens_windows_*
 **/routelens_linux_amd64
 build/
 *.tar.gz
+*.zip
+*.deb
+*.rpm
+
+# Data & runtime
 data/
+*.db
+*.db-journal
+*.log
+
+# GeoIP databases
+*.mmdb
+
+# Temporary files
+*.bak
+*.tmp
+*.swp
+*~
+check_update.json
+
+# Dependencies
 web/node_modules/
+vendor/
+
+# Build output
 web/dist/*
 !web/dist/.gitkeep
+dist/
 
-# OS / editor
+# OS files
 .DS_Store
+Thumbs.db
+
+# IDE & Editor
+.idea/
+.vscode/
+*.sublime-*
+*.code-workspace
+
+# Environment files (may contain secrets)
+.env
+.env.local
+.env.*.local
+
+# Test coverage
+coverage/
+*.cover
+*.out
+
+# Debug
+__debug_bin*

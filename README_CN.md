@@ -1,3 +1,5 @@
+<div align="center">
+
 ```
 ██████╗  ██████╗ ██╗   ██╗████████╗███████╗██╗     ███████╗███╗   ██╗███████╗
 ██╔══██╗██╔═══██╗██║   ██║╚══██╔══╝██╔════╝██║     ██╔════╝████╗  ██║██╔════╝
@@ -7,92 +9,152 @@
 ╚═════╝  ╚═════╝  ╚═════╝    ╚═╝   ╚══════╝╚══════╝╚══════╝╚═╝  ╚═══╝╚══════╝
 ```
 
-[🇺🇸 English](README.md)
+**现代化、无 Agent 的网络链路观测平台**
 
-# 🛰️ RouteLens
+*路由追踪 • 延迟测量 • 路径可视化 — 单文件交付*
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/yuanweize/RouteLens)](https://goreportcard.com/report/github.com/yuanweize/RouteLens)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Release](https://img.shields.io/github/v/release/yuanweize/RouteLens?label=Release)](https://github.com/yuanweize/RouteLens/releases)
-[![Docker Image](https://img.shields.io/docker/v/ghcr.io/yuanweize/routelens?label=GHCR%20Image&logo=github)](https://github.com/yuanweize/RouteLens/pkgs/container/routelens)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Release](https://img.shields.io/github/v/release/yuanweize/RouteLens?color=green)](https://github.com/yuanweize/RouteLens/releases/latest)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/yuanweize/RouteLens/release.yml?label=build)](https://github.com/yuanweize/RouteLens/actions)
+[![Docker Image](https://img.shields.io/badge/ghcr.io-routelens-blue?logo=docker)](https://github.com/yuanweize/RouteLens/pkgs/container/routelens)
+
+[🇺🇸 English](README.md)
+
+</div>
 
 ---
 
-## 简介
-
-RouteLens 是一款现代化、无 Agent 的网络链路观测平台，覆盖路由追踪、延迟/丢包/带宽测量，并提供可视化地图与历史趋势分析。
-
 ## ✨ 功能亮点
 
-- 🌍 **自动 GeoIP 注入**：启动时自动从 P3TERX 镜像下载 GeoIP 并注入链路地理信息。
-- ⚡ **真实延迟模式**：MTR 最后一跳分析，保证目标延迟与丢包精准。
-- 🎨 **现代化 UI**：Ant Design v5 + Dark Mode Algorithm。
-- 📊 **历史指标**：时序曲线展示延迟、丢包与速率。
-- 📦 **单文件交付**：一键安装系统服务。
+| 功能 | 描述 |
+|------|------|
+| 🛰️ **无 Agent 监控** | Ping、MTR 路由追踪、SSH 带宽测速 — 目标端无需安装任何软件 |
+| 🔄 **应用内更新** | 一键升级机制（类似 AdGuard Home） |
+| 🔐 **默认安全** | JWT 认证、登录速率限制（5次/分钟）、输入过滤 |
+| 🎨 **现代化 UI** | React 19 + Ant Design v5 + 自动暗色模式 |
+| 🌍 **自动 GeoIP** | 自动下载 GeoIP 数据库并丰富链路地理信息 |
+| 📊 **历史指标** | 延迟、丢包、带宽时序曲线 |
+| 📦 **单文件交付** | 零依赖，支持 systemd 服务 |
+| 🎯 **目标控制** | 禁用/启用监控目标，无需删除 |
 
-## 🛠 架构图
-
-```mermaid
-flowchart LR
-  A["Scheduler"] --> B["MTR (JSON)"]
-  B --> C["Analyzer (Last Hop)"]
-  C --> D["SQLite"]
-  E["Bootstrapper"] --> F["GeoIP Downloader (P3TERX)"]
-  G["Gin API"] --> H["React App (AntD v5)"]
-```
+---
 
 ## 🚀 快速开始
 
-### 二进制安装（推荐）
+### 方式一：Docker（推荐）
 
 ```bash
-wget https://github.com/yuanweize/RouteLens/releases/latest/download/routelens_linux
-chmod +x routelens_linux
-./routelens_linux service install --port 8080
+docker run -d \
+  --name routelens \
+  --cap-add NET_RAW \
+  --cap-add NET_ADMIN \
+  -p 8080:8080 \
+  -v $(pwd)/data:/data \
+  -e RS_JWT_SECRET=你的安全密钥 \
+  ghcr.io/yuanweize/routelens:latest
 ```
 
-访问 `http://localhost:8080` → `/setup` 完成初始化，首次运行将自动下载 GeoIP。
+### 方式二：Docker Compose
 
-### Docker Compose
-
-```yaml
-version: '3.8'
-services:
-  routelens:
-    image: ghcr.io/yuanweize/routelens:latest
-    container_name: routelens
-    cap_add:
-      - NET_RAW
-    ports:
-      - "8080:8080"
-    volumes:
-      - ./data:/data
-    restart: unless-stopped
+```bash
+curl -O https://raw.githubusercontent.com/yuanweize/RouteLens/master/compose.yml
+docker compose up -d
 ```
 
-## ⚙️ 配置说明
+### 方式三：二进制部署
 
-| 环境变量 | 说明 | 默认值 |
-| --- | --- | --- |
-| RS_PORT | HTTP 端口（别名） | 8080 |
-| RS_HTTP_PORT | 监听地址 | :8080 |
-| RS_DB_PATH | SQLite 路径 | ./data/routelens.db |
-| RS_JWT_SECRET | JWT 密钥 | 自动生成 |
-| RS_GEOIP_PATH | GeoIP 目录 | ./data/geoip |
-| RS_GEOIP_CITY_DB | GeoIP 城市库 | 空 |
-| RS_GEOIP_ISP_DB | GeoIP ISP 库 | 空 |
-| RS_PROBE_INTERVAL | 探测间隔（秒） | 30 |
+从 [Releases](https://github.com/yuanweize/RouteLens/releases/latest) 下载：
+
+```bash
+# Linux
+curl -LO https://github.com/yuanweize/RouteLens/releases/latest/download/routelens_1.3.1_linux_amd64.tar.gz
+tar xzf routelens_1.3.1_linux_amd64.tar.gz
+chmod +x routelens
+
+# 直接运行
+./routelens --port 8080
+
+# 或安装为 systemd 服务
+./routelens service install --port 8080
+```
+
+---
+
+## 🔧 初始配置
+
+1. 打开 `http://your-server:8080`
+2. 首次运行会跳转到 `/setup` 页面
+3. 创建管理员账户
+4. 在仪表盘添加监控目标
+5. 首次探测时自动下载 GeoIP 数据库
+
+---
+
+## ⚙️ 环境变量
+
+| 变量 | 说明 | 默认值 |
+|------|------|--------|
+| `RS_JWT_SECRET` | **⚠️ 生产环境必须设置** - JWT 签名密钥 | 随机生成（重启失效） |
+| `RS_HTTP_PORT` | HTTP 监听地址 | `:8080` |
+| `RS_DB_PATH` | SQLite 数据库路径 | `./data/routelens.db` |
+| `RS_GEOIP_PATH` | GeoIP 数据库目录 | `./data/geoip` |
+| `RS_PROBE_INTERVAL` | 探测间隔（秒） | `30` |
+| `RS_LOG_LEVEL` | 日志级别（debug/info/warn/error） | `info` |
+
+> ⚠️ **安全提示：** 生产环境务必设置 `RS_JWT_SECRET` 为强随机字符串。未设置时，启动时生成随机密钥，重启后所有会话失效。
+
+---
+
+## 🔄 应用内更新
+
+RouteLens 支持从 Web UI 一键升级：
+
+1. 进入 **设置** → **关于与更新**
+2. 点击 **检查更新**
+3. 如有新版本，点击 **安装更新**
+4. 服务自动重启为新版本
+
+---
+
+## 🔐 安全特性
+
+RouteLens v1.3.1 包含安全加固：
+
+- **JWT 认证**：密码学安全的随机密钥
+- **登录速率限制**：每 IP 每分钟 5 次
+- **输入过滤**：所有探测目标经过验证（防止命令注入）
+
+---
 
 ## 📂 项目结构
 
 ```
 .
-├── cmd/          # 入口
-├── internal/     # API / 监控 / 鉴权
-├── pkg/          # 探测 / 存储 / GeoIP
-└── web/          # 前端 (Vite)
+├── cmd/server/       # 应用入口
+├── internal/
+│   ├── api/          # REST API 与中间件
+│   ├── auth/         # JWT 认证
+│   └── monitor/      # 探测调度器
+├── pkg/
+│   ├── prober/       # MTR、ICMP、SSH 测速
+│   ├── storage/      # SQLite 存储
+│   └── geoip/        # GeoIP 地理信息
+└── web/              # React 前端（Vite + TypeScript）
 ```
 
-## License
+---
 
-MIT，详见 [LICENSE](LICENSE)。
+## 📝 许可证
+
+[MIT License](LICENSE) — 可自由用于个人和商业用途。
+
+---
+
+<div align="center">
+
+**[⬆ 返回顶部](#)**
+
+为网络工程师用 ❤️ 打造
+
+</div>
