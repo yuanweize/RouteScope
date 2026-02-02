@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.1.0](https://github.com/yuanweize/RouteLens/compare/v2.0.0...v2.1.0) (2026-02-02)
+
+
+### Features
+
+* CLDR country names, simplified refresh indicator, auto-zoom fix ([d4ae77e](https://github.com/yuanweize/RouteLens/commit/d4ae77ed4cfc4494065e17fa8a4182539f15b55a))
+* **geoip:** integrate ip2region for high-precision China IP lookup ([7408ce9](https://github.com/yuanweize/RouteLens/commit/7408ce99cd58a9f5c9ee0fa86a90967799d21454))
+* **geoip:** Switch to DB-IP City Lite database for better China IP accuracy ([76533a7](https://github.com/yuanweize/RouteLens/commit/76533a7430ad23fd862cfc49b497e864940cb72e))
+* **geoip:** v2.1.0 - Precision China city coordinates & map auto-zoom ([f099a9f](https://github.com/yuanweize/RouteLens/commit/f099a9fd0559657efe6b98d7071335273e28a746))
+* **ui:** Add smaller time range options (5m, 15m, 30m) ([9cad2ff](https://github.com/yuanweize/RouteLens/commit/9cad2fff586ead1b3901ae35ab83996d09fa86b8))
+
+
+### Bug Fixes
+
+* **geoip:** Add English names for China provinces ([04cbb93](https://github.com/yuanweize/RouteLens/commit/04cbb939bf8ac424f4805e9c338dec31b42eb258))
+* **probe:** Use microseconds for sub-ms latency precision ([afb832f](https://github.com/yuanweize/RouteLens/commit/afb832f973586e109d2c94ebab31a32b8f214178))
+
 ## [2.1.0](https://github.com/yuanweize/RouteLens/compare/v2.0.0...v2.1.0) (2025-01)
 
 
