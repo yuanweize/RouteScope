@@ -331,7 +331,7 @@ const Settings: React.FC = () => {
                 <Col span={8}>
                   <Statistic 
                     title={t('settings.geoipIPVersion') || 'IP Version'} 
-                    value={geoipStatus.ip_version ? `IPv${geoipStatus.ip_version}` : '-'} 
+                    value={geoipStatus.ip_version === 6 ? 'IPv4 + IPv6' : geoipStatus.ip_version === 4 ? 'IPv4' : '-'} 
                   />
                 </Col>
               </Row>
