@@ -607,8 +607,10 @@ func ensureGeoIPDatabase(path string) error {
 			return nil
 		}
 	}
-	log.Printf("[GeoIP] Downloading database from P3TERX mirror...")
-	return downloadGeoIP(path, "https://raw.githubusercontent.com/P3TERX/GeoLite.mmdb/download/GeoLite2-City.mmdb")
+	// Use DB-IP City Lite database for better China IP accuracy
+	// Source: https://github.com/sapics/ip-location-db (updates monthly)
+	log.Printf("[GeoIP] Downloading DB-IP City Lite database...")
+	return downloadGeoIP(path, "https://raw.githubusercontent.com/sapics/ip-location-db/main/dbip-city-mmdb/dbip-city-ipv4.mmdb")
 }
 
 func selectTargetLatency(res *prober.MTRResult, fallback float64) (float64, bool) {

@@ -772,9 +772,9 @@ func (s *Server) handleUpdateGeoIP(c *gin.Context) {
 		return
 	}
 
-	// Download from a public mirror (using db-ip.com free database as fallback)
-	// MaxMind requires license key, so we use db-ip.com's free City database
-	downloadURL := "https://github.com/P3TERX/GeoLite.mmdb/releases/latest/download/GeoLite2-City.mmdb"
+	// Download from DB-IP City Lite - has better China IP accuracy than MaxMind
+	// Source: https://github.com/sapics/ip-location-db (updates monthly)
+	downloadURL := "https://raw.githubusercontent.com/sapics/ip-location-db/main/dbip-city-mmdb/dbip-city-ipv4.mmdb"
 
 	logging.Info("geoip", "Downloading GeoIP database from %s", downloadURL)
 
