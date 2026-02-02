@@ -58,7 +58,7 @@ func newAdminCmd() *cobra.Command {
 
 	resetPassCmd := &cobra.Command{
 		Use:   "reset-password [new_password]",
-		Short: "Reset the admin password",
+		Short: "Reset the password for the system user",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			password := args[0]
@@ -73,21 +73,18 @@ func newAdminCmd() *cobra.Command {
 				log.Fatalf("Failed to hash password: %v", err)
 			}
 
-			user, err := db.GetUser("admin")
+			// Single-user system: get the first (and only) user
+			user, err := db.GetFirstUser()
 			if err != nil {
-				user = &storage.User{
-					Username: "admin",
-					Password: hashed,
-				}
-			} else {
-				user.Password = hashed
+				log.Fatalf("No user found in database. Please complete initial setup first.")
 			}
 
-			if err := db.SaveUser(user); err != nil {
-				log.Fatalf("Failed to save user: %v", err)
+			// Use targeted update to avoid UNIQUE constraint issues
+			if err := db.UpdateUserPassword(user.ID, hashed); err != nil {
+				log.Fatalf("Failed to update password: %v", err)
 			}
 
-			fmt.Println("Admin password has been reset successfully.")
+			fmt.Printf("Password for user '%s' has been reset successfully.\n", user.Username)
 		},
 	}
 

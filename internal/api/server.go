@@ -176,7 +176,7 @@ func (s *Server) handleLogin(c *gin.Context) {
 		return
 	}
 
-	token, err := auth.GenerateToken()
+	token, err := auth.GenerateToken(user.Username)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Token generation failed"})
 		return
@@ -418,10 +418,34 @@ func (s *Server) handleSaveTarget(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid probe_type"})
 		return
 	}
-	if err := s.db.SaveTarget(&t); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
+
+	// Distinguish between Create (ID=0) and Update (ID>0)
+	if t.ID == 0 {
+		// Create new target
+		if err := s.db.CreateTarget(&t); err != nil {
+			// Handle duplicate address error gracefully
+			if strings.Contains(err.Error(), "UNIQUE constraint") {
+				c.JSON(http.StatusConflict, gin.H{"error": "Target with this address already exists"})
+				return
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+	} else {
+		// Update existing target - verify it exists first
+		existing, err := s.db.GetTargetByID(t.ID)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Target not found"})
+			return
+		}
+		// Preserve created_at from existing record
+		t.CreatedAt = existing.CreatedAt
+		if err := s.db.UpdateTarget(&t); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 	}
+
 	c.JSON(http.StatusOK, t)
 }
 

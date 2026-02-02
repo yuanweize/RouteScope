@@ -34,16 +34,17 @@ func init() {
 	secretKey = []byte(sk)
 }
 
-// GenerateToken creates a new JWT token for admin
-func GenerateToken() (string, error) {
+// GenerateToken creates a new JWT token for the given username
+// In single-user mode, username can be any identifier
+func GenerateToken(username string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"sub": "admin",
+		"sub": username,
 		"exp": time.Now().Add(24 * time.Hour).Unix(),
 	})
 	return token.SignedString(secretKey)
 }
 
-// AuthMiddleware validates the JWT token
+// AuthMiddleware validates the JWT token and stores user info in context
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
@@ -72,6 +73,13 @@ func AuthMiddleware() gin.HandlerFunc {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
 			c.Abort()
 			return
+		}
+
+		// Extract username from token claims and store in context
+		if claims, ok := token.Claims.(jwt.MapClaims); ok {
+			if sub, exists := claims["sub"].(string); exists {
+				c.Set("username", sub)
+			}
 		}
 
 		c.Next()

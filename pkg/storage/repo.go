@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -54,8 +55,34 @@ func (d *DB) GetLatestTrace(target string) (*MonitorRecord, error) {
 
 // --- Target Management ---
 
+// CreateTarget inserts a new target. Returns error if address already exists.
+func (d *DB) CreateTarget(t *Target) error {
+	return d.conn.Create(t).Error
+}
+
+// UpdateTarget updates an existing target by ID.
+// Only updates non-zero fields to avoid overwriting with defaults.
+func (d *DB) UpdateTarget(t *Target) error {
+	if t.ID == 0 {
+		return fmt.Errorf("cannot update target without ID")
+	}
+	return d.conn.Model(t).Updates(t).Error
+}
+
+// SaveTarget creates or updates a target based on whether ID is set.
+// WARNING: For updates, prefer UpdateTarget to avoid GORM Save() pitfalls.
 func (d *DB) SaveTarget(t *Target) error {
+	if t.ID == 0 {
+		return d.conn.Create(t).Error
+	}
 	return d.conn.Save(t).Error
+}
+
+// GetTargetByID retrieves a target by its ID
+func (d *DB) GetTargetByID(id uint) (*Target, error) {
+	var t Target
+	err := d.conn.First(&t, id).Error
+	return &t, err
 }
 
 func (d *DB) DeleteTarget(id uint) error {
