@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.5](https://github.com/yuanweize/RouteLens/compare/v2.2.4...v2.2.5) (2026-02-13)
+
+
+### Bug Fixes
+
+* resolve docker compose permission issues and add mtr check ([f19b4fa](https://github.com/yuanweize/RouteLens/commit/f19b4fa72d32bc7ec3ebeb363d1dbbe2d0271e06))
+
 ## [2.2.3](https://github.com/yuanweize/RouteLens/compare/v2.2.2...v2.2.3) (2026-02-02)
 
 
