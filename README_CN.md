@@ -21,6 +21,9 @@
 
 [🇺🇸 English](README.md)
 
+<br>
+<img src=".github/assets/webui_screenshot.png" alt="RouteLens Web UI" width="800">
+
 </div>
 
 ---
