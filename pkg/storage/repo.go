@@ -17,8 +17,8 @@ func (d *DB) GetHistory(target string, start, end time.Time) ([]MonitorRecord, e
 	var records []MonitorRecord
 
 	err := d.conn.Model(&MonitorRecord{}).
-		Select("id, created_at, target, latency_ms, packet_loss, speed_up, speed_down"). // Exclude TraceJson
-		Where("target = ? AND created_at BETWEEN ? AND ?", target, start, end).
+		Select("id, created_at, target, latency_ms, packet_loss, speed_up, speed_down").
+		Where("target = ? AND created_at >= ? AND created_at <= ?", target, start, end).
 		Order("created_at asc").
 		Find(&records).Error
 
@@ -62,12 +62,15 @@ func (d *DB) CreateTarget(t *Target) error {
 }
 
 // UpdateTarget updates an existing target by ID.
-// Only updates non-zero fields to avoid overwriting with defaults.
+// Uses Select to force-update all fields, including bool zero-value (false).
 func (d *DB) UpdateTarget(t *Target) error {
 	if t.ID == 0 {
 		return fmt.Errorf("cannot update target without ID")
 	}
-	return d.conn.Model(t).Updates(t).Error
+	return d.conn.Model(t).Select(
+		"name", "address", "desc", "enabled",
+		"probe_type", "probe_config", "last_error", "last_error_at",
+	).Updates(t).Error
 }
 
 // SaveTarget creates or updates a target based on whether ID is set.
