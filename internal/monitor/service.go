@@ -619,7 +619,9 @@ func ensureGeoIPDatabase(path string) error {
 	// Use DB-IP City Lite database for non-China IPs
 	// Source: https://github.com/sapics/ip-location-db (updates monthly)
 	log.Printf("[GeoIP] Downloading DB-IP City Lite database...")
-	return downloadGeoIP(path, "https://raw.githubusercontent.com/sapics/ip-location-db/main/dbip-city-mmdb/dbip-city-ipv4.mmdb")
+	//return downloadGeoIP(path, "https://raw.githubusercontent.com/sapics/ip-location-db/main/dbip-city-mmdb/dbip-city-ipv4.mmdb")
+	//return downloadGeoIP(path, "https://cdn.jsdelivr.net/gh/Loyalsoldier/geoip@release/Country.mmdb")
+	return downloadGeoIP(path, "https://github.com/sapics/ip-location-db/releases/download/latest/dbip-city-ipv4.mmdb")
 }
 
 // ensureIP2RegionDatabase ensures the ip2region xdb file exists for China IP lookup
@@ -634,7 +636,7 @@ func ensureIP2RegionDatabase(path string) error {
 	// Format: 国家|省份|城市|ISP|iso-code (e.g., 中国|湖南|湘潭|电信|CN)
 	// Source: https://github.com/lionsoul2014/ip2region
 	log.Printf("[GeoIP] Downloading ip2region database for China IP precision...")
-	return downloadGeoIP(path, "https://raw.githubusercontent.com/lionsoul2014/ip2region/master/data/ip2region_v4.xdb")
+	return downloadGeoIP(path, "https://raw.githubusercontent.com/lionsoul2014/ip2region/master/data/ip2region_v4.xdb")	
 }
 
 func selectTargetLatency(res *prober.MTRResult, fallback float64) (float64, bool) {

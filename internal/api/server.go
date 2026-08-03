@@ -390,12 +390,12 @@ func (s *Server) handleHistory(c *gin.Context) {
 	end := time.Now()
 	start := end.Add(-6 * time.Hour)
 	if startStr != "" {
-		if parsed, err := time.Parse(time.RFC3339, startStr); err == nil {
+		if parsed, err := parseTimeParam(startStr); err == nil {
 			start = parsed
 		}
 	}
 	if endStr != "" {
-		if parsed, err := time.Parse(time.RFC3339, endStr); err == nil {
+		if parsed, err := parseTimeParam(endStr); err == nil {
 			end = parsed
 		}
 	}
@@ -408,6 +408,21 @@ func (s *Server) handleHistory(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, records)
+}
+
+// parseTimeParam parses an ISO 8601 time string, handling both RFC3339 and RFC3339Nano formats.
+// Frontend sends toISOString() which includes milliseconds (e.g. 2026-08-03T06:45:00.000Z)
+// Converts to local time to match SQLite storage format (glebarez/sqlite uses local timezone).
+func parseTimeParam(s string) (time.Time, error) {
+	var parsed time.Time
+	var err error
+	if parsed, err = time.Parse(time.RFC3339Nano, s); err == nil {
+		return parsed.Local(), nil
+	}
+	if parsed, err = time.Parse(time.RFC3339, s); err == nil {
+		return parsed.Local(), nil
+	}
+	return time.Time{}, err
 }
 
 func (s *Server) handleProbe(c *gin.Context) {
